@@ -29,7 +29,7 @@ A bootstrap commit was created to allow documentation-only work. **The current m
 
 ### Required import process (NOT executed)
 
-With an authorized Git client and credentials for private repository:
+With an authorized Git client and credentials for private repository. **Temporarily disable GitHub Actions in Settings → Actions → General before importing**: the untouched Postiz baseline contains upstream workflows that might otherwise be triggered on a user-authenticated push. Re-enable only after CI review in the next phase.
 
 ~~~bash
 git clone https://github.com/gitroomhq/postiz-app.git social-publisher-import
