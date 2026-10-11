@@ -11,7 +11,9 @@
 
 This repository is **not a private GitHub fork**: GitHub forks of public repositories cannot be made private. It is an independent private repository intended to contain an imported copy of Postiz with Git history. The available GitHub connector can write files and branches to existing repositories, but it cannot import an entire upstream Git repository and its full history.
 
-A bootstrap commit was created to allow documentation-only work. **The current main branch is not the pinned Postiz source**; the development branch is temporary and must be recreated or rebased after the source import. No claim of a source import, runnable Postiz code, or completed Stage 1 may be made until all baseline checks pass.
+A bootstrap commit was created to allow documentation-only work. **The current main branch is not the pinned Postiz source**; the development branch is temporary and must be recreated or rebased after the source import.
+
+**Verified import attempt (2026-10-12):** A one-time GitHub Actions job successfully fetched upstream Postiz and checked out the pinned commit, but GitHub rejected the push of the original tree: the Actions token lacked permission to create/update upstream workflow files (such as .github/workflows/build-containers.yml). The attempted workflow was removed from main after failure. No source code was imported and no deployment occurred. The approved remedy is an authenticated Git import performed with credentials allowed to write workflow files, not bypassing that GitHub permission. No claim of a source import, runnable Postiz code, or completed Stage 1 may be made until all baseline checks pass.
 
 ## 1. Stage 1 — Foundation
 
