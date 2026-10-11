@@ -1,0 +1,51 @@
+name: One-time import pinned Postiz history
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/import-postiz-baseline.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-postiz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the private bootstrap repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Import upstream Git history and restore documentation
+        shell: bash
+        env:
+          POSTIZ_BASELINE: 91c91f633a0175fb3914dba64c932928c514b72a
+          DOC_BRANCH: feature/telegram-publisher-foundation
+        run: |
+          set -euo pipefail
+          BOOTSTRAP_HEAD="$(git rev-parse HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$DOC_BRANCH"
+          DOCUMENTATION_HEAD="$(git rev-parse "refs/remotes/origin/$DOC_BRANCH")"
+          mkdir -p /tmp/social-publisher-docs
+          for file in PROJECT_OVERVIEW.md REQUIREMENTS.md IMPLEMENTATION_PLAN.md; do
+            git show "$DOCUMENTATION_HEAD:$file" > "/tmp/social-publisher-docs/$file"
+          done
+          git remote add postiz-upstream https://github.com/gitroomhq/postiz-app.git
+          git fetch --no-tags postiz-upstream main
+          git cat-file -e "$POSTIZ_BASELINE^{commit}"
+          git switch --detach "$POSTIZ_BASELINE"
+          test "$(git rev-parse HEAD)" = "$POSTIZ_BASELINE"
+          test -f LICENSE || test -f LICENSE.md || test -f LICENSE.txt
+          git switch -c import-docs-on-postiz
+          cp /tmp/social-publisher-docs/*.md .
+          git add PROJECT_OVERVIEW.md REQUIREMENTS.md IMPLEMENTATION_PLAN.md
+          git commit -m "docs: establish Social Publisher requirements and plan"
+          DOC_COMMIT="$(git rev-parse HEAD)"
+          git push origin "$DOC_COMMIT:refs/heads/$DOC_BRANCH" "--force-with-lease=refs/heads/$DOC_BRANCH:$DOCUMENTATION_HEAD"
+          git push origin "$POSTIZ_BASELINE:refs/heads/main" "--force-with-lease=refs/heads/main:$BOOTSTRAP_HEAD"
+          echo "Imported base $POSTIZ_BASELINE with documentation commit $DOC_COMMIT"
