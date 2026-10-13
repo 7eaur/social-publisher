@@ -1,7 +1,7 @@
-import { Pool } from "pg";
-import type { PoolClient } from "pg";
+import pg from "pg";
+import type { Pool as PgPool, PoolClient } from "pg";
 
-export function createDatabasePool(url = process.env.DATABASE_URL): Pool {
+export function createDatabasePool(url = process.env.DATABASE_URL): PgPool {
   if (!url) throw new Error("DATABASE_URL is required");
   const parsed = new URL(url);
   if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
@@ -10,7 +10,7 @@ export function createDatabasePool(url = process.env.DATABASE_URL): Pool {
   if (process.env.NODE_ENV === "production" && parsed.searchParams.get("sslmode") !== "verify-full") {
     throw new Error("Production DATABASE_URL must include sslmode=verify-full");
   }
-  return new Pool({
+  return new pg.Pool({
     connectionString: url,
     max: 10,
     connectionTimeoutMillis: 5000,
@@ -20,7 +20,7 @@ export function createDatabasePool(url = process.env.DATABASE_URL): Pool {
 }
 
 export async function withinTransaction<T>(
-  pool: Pool,
+  pool: PgPool,
   action: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   const client = await pool.connect();
