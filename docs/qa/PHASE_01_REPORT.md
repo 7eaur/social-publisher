@@ -16,14 +16,14 @@
   - per-route timezone-aware due-slot candidate
   - compatibility candidate rules (Facebook/Instagram)
   - explicit publishing state transition guard, including quarantine of unknown outcomes
-- Added low-privilege GitHub Actions checks.
+- Added low-privilege GitHub Actions checks. Standardized npm workspaces and added runtime checks rejecting unknown social platforms/media kinds.
 
 ## Test evidence
 
-**GitHub Actions run:** https://github.com/7eaur/social-publisher/actions/runs/38441910490
+**GitHub Actions run:** https://github.com/7eaur/social-publisher/actions/runs/38442400171
 
-Workflow on commit '38f39c2d6f9af93f0f76fd5a6e136403f6a195f8':
-- Node 22 pure-domain unit tests: **16 passed, 0 failed**.
+Workflow on commit '694f1214cf47e090777612a230b64306a45e6431':
+- Node 22 pure-domain unit tests: **17 passed, 0 failed**.
 - Strict TypeScript typecheck: **passed**.
 - No deployment actions and no real credentials.
 
