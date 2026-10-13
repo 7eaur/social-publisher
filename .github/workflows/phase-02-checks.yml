@@ -1,0 +1,47 @@
+name: Phase 02 PostgreSQL and Security Checks
+
+on:
+  push:
+    branches:
+      - build/phase-02-persistence-security-20261013
+  pull_request:
+    branches:
+      - build/phase-01-clean-foundation-20261013
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: sp_test
+          POSTGRES_PASSWORD: sp_test
+          POSTGRES_DB: social_publisher_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sp_test -d social_publisher_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://sp_test:sp_test@localhost:5432/social_publisher_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Strict typecheck
+        run: npm run typecheck
+      - name: Core unit tests
+        run: npm test
+      - name: Verify SQL migration and real Postgres integration tests
+        run: npm run test:db
