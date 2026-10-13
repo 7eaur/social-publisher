@@ -79,17 +79,24 @@ export async function quarantineExpiredClaims(pool: Pool): Promise<number> {
 export async function createDeliveryIntent(
   client: PoolClient, sourceItemId: string, destinationId: string
 ): Promise<string | null> {
-  // Route-destination join guarantees the destination belongs to this source item's route.
-  const result = await client.query<{ id: string }>(
-    `INSERT INTO publication_records(source_item_id,destination_id)
-     SELECT si.id,rd.destination_id FROM source_items si
+  // Record ineligible content as a terminal per-destination skip; never queue it.
+  const result = await client.query<{ id: string; state: string }>(
+    `INSERT INTO publication_records(source_item_id,destination_id,state)
+     SELECT si.id,rd.destination_id,
+       CASE WHEN si.kind='MIXED_ALBUM'
+         OR (d.platform='INSTAGRAM' AND si.kind='TEXT')
+         THEN 'SKIPPED_UNSUPPORTED' ELSE 'PENDING' END
+     FROM source_items si
      JOIN route_destinations rd ON rd.route_id=si.route_id
+     JOIN destinations d ON d.id=rd.destination_id
      WHERE si.id=$1::uuid AND rd.destination_id=$2::uuid
      ON CONFLICT(source_item_id,destination_id) DO NOTHING
-     RETURNING id`, [sourceItemId,destinationId]
+     RETURNING id,state`, [sourceItemId,destinationId]
   );
-  const publicationId = result.rows[0]?.id;
-  if (!publicationId) return null;
+  const publication = result.rows[0];
+  if (!publication) return null;
+  const publicationId = publication.id;
+  if (publication.state === 'SKIPPED_UNSUPPORTED') return publicationId;
   const queued = await enqueue(client, "publication:"+publicationId, "PUBLISH", { publicationId });
   if (!queued) throw new Error("Publication outbox invariant violated");
   return publicationId;
