@@ -1,73 +1,43 @@
 # Social Publisher — Project Overview
 
-**Status:** Planning baseline only; source import not completed.  
-**Updated:** 2026-10-12  
-**Private repository:** https://github.com/7eaur/social-publisher  
-**Upstream:** https://github.com/gitroomhq/postiz-app  
-**Pinned source reference (target, NOT imported):** 91c91f633a0175fb3914dba64c932928c514b72a  
-**Original license:** AGPL-3.0
+**Date:** 2026-10-13  
+**Decision:** Build an original, narrowly scoped system from scratch.  
+**Repository:** 7eaur/social-publisher (private).  
+**Architecture reference only:** https://github.com/gitroomhq/postiz-app  
+**Status:** Phase 01 in progress; no production system exists.
 
-## 1. Purpose
+## Product
 
-Social Publisher is a customized, self-hosted Postiz installation, with a **single application and management interface**. Telegram private channels remain the canonical content archive; the system indexes their messages, schedules eligible items, and publishes on Facebook Pages and connected Instagram professional accounts.
+A single self-hosted platform with one admin interface, separate background workers and independent publishing routes. Telegram is the source of truth for original content and media; the system indexes only necessary metadata and retrieves media on demand.
 
-This is NOT a second automation platform: **no n8n**. Reuse Postiz's existing editor, calendar, channel integrations, analytics, post publishing, recovery and Temporal-based orchestration. Build only missing Telegram-source ingestion, independent publishing rules, source-based deduplication, and short-lived media handling.
-
-## 2. Content routes
-
-| Route | Private content source | Publishing targets | Proposed policy |
+| Publishing route | Input | Destinations | Proposed daily cadence |
 |---|---|---|---|
-| Wasl Tech | Dedicated Telegram private channel | Wasl Facebook Page + Instagram account | 1 post on each configured publishing day |
-| Religious | Dedicated Telegram private channel | Religious Facebook Page + linked Instagram | 4–5 posts per configured publishing day at adjustable interaction-oriented times |
+| Wasl Tech | Private Telegram channel | Facebook Page + Instagram professional account | 1 item on selected days |
+| Religious | Different private Telegram channel | Its Facebook Page + Instagram professional account | 4 or 5 items on selected days |
 
-TikTok is a future extension; the Postiz TikTok connector remains intact without activation in initial scope.
+The channels, remote accounts and publishing schedules must be isolated. Owner may send text, images, videos, albums and captions. No per-item approval is required after the system has been configured and validated.
 
-## 3. User experience
+## Product flow
 
-1. Owner sends mixed content (text, images, videos, albums and captions) into the appropriate private Telegram channel, including large batches.
-2. The system records identifiers, metadata, and sync checkpoints. It does **not** bulk-download the source media.
-3. Schedule rules independently select eligible Telegram items for each route.
-4. At publishing time the chosen item's media is downloaded/streamed on demand to temporary storage and validated for each platform.
-5. Postiz's original Facebook/Instagram integrations publish without per-item manual approval.
-6. The system records each destination's result separately; publishing to one must not cause duplicates on the other.
-7. Media objects are cleaned up only after delivery is resolved and the safety retention window has ended. Telegram source messages remain unchanged.
+1. Index private Telegram messages, including older history, and recover after interrupted syncs.
+2. Group multi-message Telegram albums into one canonical content item.
+3. Store minimal message metadata and a durable source checkpoint; do not bulk-copy archived media.
+4. Evaluate configurable local-day schedules independently for each route.
+5. Atomically reserve one eligible item and one scheduled slot; create a separate delivery intent for every destination.
+6. Fetch compatible media when needed, then call a platform-specific adapter.
+7. Persist remote identifiers and status. If the remote outcome is unknown, stop automated retries and reconcile before retrying.
+8. Physically delete temporary media after confirmed safe retention; originals remain in Telegram.
 
-Text-only messages may be published on Facebook. Instagram requires compatible visual content; unsupported items are explicitly skipped for that destination without blocking another target.
+For text-only content, Facebook is eligible and Instagram is skipped with an explicit reason. Mixed albums need explicit destination validation, not silent image/video loss. Captions are preserved by default: no automatic AI rewriting, especially of religious material.
 
-## 4. Architecture principles
+## Architecture boundary
 
-- Keep one codebase and the required Postiz services, including PostgreSQL, Redis, Temporal and workers.
-- Preserve original Postiz source behavior and keep the custom modules isolated where possible.
-- Retain source records in Telegram. Store only minimal database metadata for queueing, scheduling and publication verification.
-- Protect against duplicate deliveries via unique source-message/destination keys, transactional claiming, and non-blind retry.
-- If an external publishing operation has an unknown result, reconcile before attempting another publish.
-- Do not retain Telegram user sessions, Meta tokens, or other secrets in Git or application logs.
-- Self-hosted Meta publishing requires correct permissions and developer app setup; Facebook–Instagram linkage alone is insufficient.
-- Follow AGPL-3.0 license obligations.
+Our own TypeScript domain core, a NestJS API, a PostgreSQL-backed transactional queue/outbox worker, provider adapters and a Next.js management UI are planned. Do not introduce Redis or Temporal simply because Postiz uses them; the queue correctness must be proven first, with fewer deployable services.
 
-## 5. Additions only
+**Postiz is not a dependency.** Read-only study and comparison are allowed. Any future decision to reuse an upstream code fragment requires a separate license-compliance review; do not paste code or copy upstream files by default.
 
-- **TelegramSources:** private channel connection, historical and incremental indexing, checkpoint recovery.
-- **ContentQueue:** per-route backlog, source mapping, ordered item selection and duplicate protection.
-- **PublishingRules:** weekly days, daily limits, time slots, timezone, per-route pause/resume.
-- **MediaLifecycle:** on-demand media retrieval, safe temporary exposure to publishing APIs, cleanup and orphan handling.
-- **Management UI additions:** small source/queue/schedule views within Postiz, plus actionable publishing failure alerts.
+## What is actually built now
 
-The existing Postiz Telegram provider is for publishing **to** Telegram and is not our Telegram source-reader. Preserve it.
+Phase 01 creates only repository architecture documentation, a minimal TypeScript package of domain rules and unit tests. Telegram, Meta, storage, authentication, database and deployment are not yet implemented.
 
-## 6. Out of scope initially
-
-- No n8n; no full replacement of Postiz's publishing engine or UI.
-- No automatic AI rewriting, especially for religious quotations, until explicitly approved.
-- No TikTok activation in the first stage.
-- No rehosting the full Telegram video archive.
-- No claim of optimal engagement times before actual analytics.
-- No production deployment during the GitHub foundation stage.
-
-## 7. Open functional decisions
-
-Exact publishing days/times, FIFO vs priority override, caption cleaning policy, mixed-media album transformations, Telegram edits/deletions, storage size/TTL limits, and treatment of uncertain external publishing results remain for specification and tests.
-
-## 8. Repository status
-
-On 2026-10-12 the connected account was verified as **7eaur** and the target repository as **Private**. It is an independent repository, not a true GitHub fork. The branch holding this documentation is a **temporary bootstrap** until the original Postiz Git tree and history are imported, the main branch is pinned to the source SHA above, and the documentation branch is rebased onto it. **Do not mistake the documentation bootstrap for imported Postiz source code.**
+**Approval gate:** each phase is reviewed and tested before starting the next one.

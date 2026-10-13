@@ -1,79 +1,48 @@
-# Social Publisher — Requirements
+# Social Publisher — Product Requirements
 
-**Status:** Approved scope + explicitly open details. No production work initiated.  
-**Date:** 2026-10-12  
-**Required Postiz reference:** 91c91f633a0175fb3914dba64c932928c514b72a (source import pending).
+**Date:** 2026-10-13  
+**Scope:** Original implementation; Postiz is reference-only.  
+**Status:** Functional requirements approved in principle, platform edge cases to verify in testing.
 
-## 1. Scope and priorities
+## P0 functional acceptance criteria
 
-**P0:** two Telegram sources; resilient indexing; mixed media; per-route schedules; safe Facebook/Instagram delivery; deduplication per destination; media lifetime; restart recovery; permissions and secrets.
+| ID | Requirement | Acceptance condition |
+|---|---|---|
+| R01 | Two independent private Telegram sources | No content/source/credential mix between routes |
+| R02 | Historical and ongoing indexing | Resume from a persisted checkpoint without double-import |
+| R03 | Mixed content with captions and albums | Each source item has a canonical identity and media classification |
+| R04 | Telegram as media archive | No mass media downloads and no rewriting or deleting source posts |
+| R05 | Separate schedule configuration | Weekdays, IANA timezone, daily cap and slots configurable per route |
+| R06 | Daily cadence | Wasl defaults to 1, religious to 4–5 on enabled days; final days/times set later |
+| R07 | Automatic scheduling | No manual per-post approval; pause/resume supported |
+| R08 | Independent destinations | Facebook/Instagram delivery records and errors are independent |
+| R09 | Safe formats | Instagram text-only is SKIPPED_UNSUPPORTED; mixed albums require validation |
+| R10 | Duplicate prevention | Unique canonical source item and destination keys plus atomic slot/item reservation |
+| R11 | Crash recovery | Worker can safely resume or reconcile after a restart |
+| R12 | Unknown external result | Never blindly resubmit after a timed-out publish request |
+| R13 | Media lifecycle | Stream on demand, validate sizes/formats, release only after safe completion |
+| R14 | Management UI | Route status, queue, schedule, failures and destination status visible |
+| R15 | Security | Private secrets, protected admin access, least privilege, audit, rate limiting |
+| R16 | Quality | Tests for concurrency, timezone edges, failures, restart and platform errors |
 
-**P1:** Telegram error notifications, source/queue status, manual pause/resume and better monitoring.
+## P1 / future
 
-**P2:** TikTok, empirical time-of-day optimization, optional caption enhancement.
+Telegram failure notifications, enhanced analytics, optional TikTok, and account-specific caption formatting after approval.
 
-## 2. Functional requirements
+## Invariants
 
-| ID | Priority | Requirement | Acceptance |
-|---|---|---|---|
-| FR-01 | P0 | Two independently configured private Telegram channels | Messages cannot cross between routes |
-| FR-02 | P0 | Telegram remains original content and media archive | No bulk media import; originals remain in channel |
-| FR-03 | P0 | Incremental and historical indexing | Resuming after outage catches unindexed messages |
-| FR-04 | P0 | Text, image, video and albums | Detect and validate content, with platform-specific handling |
-| FR-05 | P0 | No approval required per post | Eligible item goes to publisher automatically |
-| FR-06 | P0 | Wasl rule: one post per selected publishing day | Never exceed day's configured limit |
-| FR-07 | P0 | Religious rule: four or five posts on selected days | Posts distributed among independently configured slots |
-| FR-08 | P0 | Times, weekdays and timezone managed from UI | Persist and apply without rebuilding code |
-| FR-09 | P0 | Postiz's original Facebook/Instagram connectors publish | Persist remote ID/link and accurate per-platform state |
-| FR-10 | P0 | Source/destination deduplication | One publication record per item + target, atomic claim |
-| FR-11 | P0 | Partial failure handling | Successful destination is never blindly republished |
-| FR-12 | P0 | Ambiguous remote outcome handling | Stop or reconcile before any retry |
-| FR-13 | P0 | On-demand media retrieval and safe cleanup | No unbounded storage growth or premature deletion |
-| FR-14 | P0 | Upstream functionality regression protection | Existing relevant Postiz tests pass |
-| FR-15 | P1 | Queue and source monitoring | Show pending, published, failed, skipped counts |
-| FR-16 | P1 | Pause/resume a route | Other route keeps publishing |
-| FR-17 | P1 | Telegram alerts | Inform owner about broken sessions, expired permissions and persistent failures |
-| FR-18 | P2 | TikTok extension | Add destination without redesigning sources |
-| FR-19 | P2 | Analytics-informed timing | Use measured engagement, never pretend fixed slots are universally optimal |
+- Each source item maps to one route, and each destination has its own publication state.
+- A source item must never be automatically posted twice to the same destination.
+- No guarantee of external exactly-once publication can be assumed without remote idempotency; unknown outcomes require reconciliation.
+- Every schedule slot has a unique route/local-date/local-time claim.
+- The count of consumed slots for a local day includes reserved slots to prevent race conditions.
+- A missing/incompatible item must not cause fabrication of a social post.
+- No source session, OAuth token, temporary media, private channel name or log with secrets is committed to Git.
 
-## 3. Important platform rules
+## Decisions to configure later, not blockers for the core
 
-- Instagram professional account requires a visual asset for feed publishing; Facebook can accept text-only content. For a text-only source item mark Instagram **SKIPPED_UNSUPPORTED**, not failed and not generated with AI by default.
-- Mixed media and albums require provider-specific validation and explicit transformation policy.
-- Facebook Page and Instagram account links do not replace OAuth token, permission, and app review requirements.
-- No blind retries on network timeouts after an external publish request; preserve ambiguous status for reconciliation.
+Exact days/slots/timezone, oldest-first (default) versus priority, Telegram edit/delete behavior, Instagram album conversion rules, media limits/retention, login provider and Meta permission validation. Default caption policy: preserve exactly; no AI rewriting.
 
-## 4. Proposed data model
+## Phase 01 completion standard
 
-- **ContentSource:** organization, Telegram channel peer ID, route, last indexed message, connection health.
-- **SourceItem:** channel ID, message ID, album/group ID, type, metadata, text/caption, source timestamp, status.
-- **ScheduleRule:** route, timezone, permitted weekdays, time slots, daily limit, enabled.
-- **PublicationRecord:** item, Postiz integration, state, Postiz post ID, remote ID/URL, attempts, last error.
-- **TemporaryMedia:** storage key, source item, retention/lease and cleanup state.
-
-Candidate unique indexes: (sourceId, telegramMessageId), (sourceItemId, integrationId). Grouped Telegram media may require an additional canonical group-level ID to avoid treating album parts as independent posts.
-
-The application must use atomic claims, resilient checkpoints and idempotent state transitions. **Absolute external exactly-once delivery is not universally guaranteed by social media APIs**; the required safeguard is no automatic reissue when success is uncertain.
-
-## 5. Operational/security requirements
-
-- Railway or another chosen service must store sensitive Telegram session and Meta tokens as deployment secrets.
-- Limit stored media and execution logs; use a safe expiry/cleanup mechanism and recovery job.
-- Retain backup strategy, observability, health checks and rollback.
-- Respect external rate limits; retry only when safe.
-- Keep the custom modules localized and compatible with upstream upgrades.
-- Comply with Postiz AGPL-3.0 terms.
-- Do not delete or rewrite original Telegram messages.
-
-## 6. Items still requiring a product decision
-
-1. Oldest-first FIFO with or without an optional priority override.
-2. Caption unchanged or strictly controlled clean-up (no modification of religious quotations without permission).
-3. Specific weekdays, time slots and final timezone for the two routes.
-4. Fewer items than the daily quota: suggested action is to post available items only.
-5. Handling edits/deletes in Telegram and unsupported albums.
-6. Temporary storage provider, maximum media file size and safe retention interval.
-
-## 7. Stage 1 boundaries
-
-Only private GitHub foundation, verified Postiz import, baseline reference, development branch and documentation. Do not deploy, connect live accounts, access secrets, alter original source behavior or start the next phase.
+Clean original structure, documented architecture and explicit phase gates, deterministic pure-domain tests, verified Git branch/commit and a report. **No claim of full system functionality at this stage.**

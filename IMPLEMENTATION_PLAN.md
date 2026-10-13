@@ -1,111 +1,59 @@
-# Social Publisher — Implementation Plan
+# Social Publisher — Execution Plan (From Scratch)
 
-**Status:** Stage 1 partially implemented; source/history import still pending.  
-**Date:** 2026-10-12  
-**Repository:** 7eaur/social-publisher (verified Private, independent repository)  
-**Upstream:** https://github.com/gitroomhq/postiz-app  
-**Pinned source SHA target:** 91c91f633a0175fb3914dba64c932928c514b72a  
-**Development branch:** feature/telegram-publisher-foundation
+**Approved direction:** Original application; Postiz is a read-only engineering reference.  
+**Active implementation branch:** build/phase-01-clean-foundation-20261013  
+**Last update:** 2026-10-13  
+**Previous Postiz-import plan:** superseded; no upstream import or fork required.
 
-## 0. Critical baseline note
+## Engineering process and safety gates
 
-This repository is **not a private GitHub fork**: GitHub forks of public repositories cannot be made private. It is an independent private repository intended to contain an imported copy of Postiz with Git history. The available GitHub connector can write files and branches to existing repositories, but it cannot import an entire upstream Git repository and its full history.
+For every phase: write a limited acceptance checklist, implement clean modules, add focused tests, inspect security and edge cases, document the result, and obtain owner confirmation before progressing. Never claim a phase passed without its evidence. Never promise software can have zero defects; reduce risk using gate checks.
 
-A bootstrap commit was created to allow documentation-only work. **The current main branch is not the pinned Postiz source**; the development branch is temporary and must be recreated or rebased after the source import.
+## Phase 01 — Foundation and domain (CURRENT)
 
-**Verified import attempt (2026-10-12):** A one-time GitHub Actions job successfully fetched upstream Postiz and checked out the pinned commit, but GitHub rejected the push of the original tree: the Actions token lacked permission to create/update upstream workflow files (such as .github/workflows/build-containers.yml). The attempted workflow was removed from main after failure. No source code was imported and no deployment occurred. The approved remedy is an authenticated Git import performed with credentials allowed to write workflow files, not bypassing that GitHub permission. No claim of a source import, runnable Postiz code, or completed Stage 1 may be made until all baseline checks pass.
+1. Organize original repository, docs, Git branches and reference-only status.
+2. Design modular ports/adapters architecture and persistence boundaries.
+3. Implement pure source/platform compatibility, schedule rules, canonical keys and publishing state transitions.
+4. Add tests and lightweight validation workflow if GitHub Actions permits.
+5. Verify all changes are isolated to the build branch. **Do not connect accounts or deploy.**
 
-## 1. Stage 1 — Foundation
+**Done when:** branch and files confirmed; domain tests pass; no original Postiz code copied; user reviews report.
 
-1. [x] Confirm authenticated GitHub owner is 7eaur and repository is Private.
-2. [x] Choose upstream pinned commit and record its origin.
-3. [x] Create documentation-only temporary branch.
-4. [x] Upload PROJECT_OVERVIEW.md, REQUIREMENTS.md and IMPLEMENTATION_PLAN.md to that branch.
-5. [ ] Import upstream Postiz code **and Git history** into this private repository.
-6. [ ] Reset or establish main at the pinned Postiz commit, retaining AGPL license and complete source tree.
-7. [ ] Re-create/rebase development branch from the pinned source main and retain only three documentation changes.
-8. [ ] Verify main source SHA, branch ancestry, documentation contents and git diff with GitHub.
-9. [x] Do not deploy, connect accounts, or modify Postiz functions in this stage.
+## Phase 02 — Persistence, auth and jobs
 
-### Required import process (NOT executed)
+NestJS HTTP API, Prisma/PostgreSQL schema and migrations, admin login/session hardening, RBAC, encrypted credential storage, content/source/slot/publication tables, transactional outbox, atomic row claiming, health/readiness/audit. Test concurrent claims and rollback. No external publishes.
 
-With an authorized Git client and credentials for private repository. **Temporarily disable GitHub Actions in Settings → Actions → General before importing**: the untouched Postiz baseline contains upstream workflows that might otherwise be triggered on a user-authenticated push. Re-enable only after CI review in the next phase.
+## Phase 03 — Telegram ingestion
 
-~~~bash
-git clone https://github.com/gitroomhq/postiz-app.git social-publisher-import
-cd social-publisher-import
-git switch -C main 91c91f633a0175fb3914dba64c932928c514b72a
-git remote rename origin upstream
-git remote add origin git@github.com:7eaur/social-publisher.git
-# Repository currently contains a temporary bootstrap: preserve the 3 docs
-# and verify desired ref state before deliberately replacing the bootstrap.
-git push --force-with-lease origin main
-git switch -c feature/telegram-publisher-foundation
-# Add the reviewed 3 documentation files from the temporary branch/backup,
-# then commit documentation only:
-git add PROJECT_OVERVIEW.md REQUIREMENTS.md IMPLEMENTATION_PLAN.md
-git commit -m "docs: establish social publisher scope and implementation plan"
-git push --force-with-lease -u origin feature/telegram-publisher-foundation
-~~~
+MTProto user-session connector, per-channel permissions and indexing, history pagination, album grouping, edits/deletions policy, bounded concurrency, backoff and checkpoint recovery. Keep source media in Telegram. Test two isolated routes and reconnects.
 
-Never run the overwrite blindly if unexpected commits appear; inspect remote branches and backups first. **No force push has been performed by the assistant.**
+## Phase 04 — Scheduling and queue worker
 
-### Stage 1 acceptance
+IANA timezone daily slots, weekly rules, daily caps, backlog ordering, pause/resume, durable slot claims, reconciliation of missed slots and restart safety. Exercise local day boundaries, DST, concurrency and source depletion.
 
-- Private repo confirmed.
-- main points to pinned source commit and includes actual Postiz tree/history/license.
-- Development branch descends from that commit.
-- Only new documents differ from original Postiz at baseline.
-- No Railway deployment, production token, or functional changes.
+## Phase 05 — Real Meta publishing adapters
 
-## 2. Stage 2 — Untouched Postiz smoke test
+OAuth for Facebook Pages and Instagram professional accounts, scoped token refresh/storage, capability checks, explicit compatible content handling, preview/dry-run, remote acknowledgement tracking and uncertain-result reconciliation. Live approval tests with authorized test accounts only.
 
-- Validate Node/pnpm prerequisites, PostgreSQL, Redis, Temporal, workers and frontend/backend.
-- Start the original application; verify authentication, calendar, media workflow, scheduling and API.
-- Test connection and actual authorized publishing to selected Facebook/Instagram accounts, subject to Meta app permissions and reviews.
-- Measure CPU/RAM/storage costs before choosing Railway production shape.
-- **Gate:** verified publishing and documented resource envelope; no unreviewed feature changes.
+## Phase 06 — Temporary media lifecycle
 
-## 3. Stage 3 — Telegram sources
+On-demand fetch/stream, content-type and size verification, safe HTTPS staging for Meta, expiry leases, garbage collection, storage quotas, provider processing status and post-cleanup audit.
 
-- Keep Postiz's original Telegram publishing provider unchanged.
-- Build source connector using supported Telegram client functionality for channel history retrieval.
-- Index IDs and metadata without bulk media downloads; handle albums, edits/deletes and pagination.
-- Persist a secure session and atomic resume checkpoint.
-- **Gate:** both source channels recover correctly after interruption.
+## Phase 07 — Management UI / operation
 
-## 4. Stage 4 — Routes and schedule
+Next.js admin dashboard, connect sources/destinations, schedules, queue, status/errors, retries only when provably safe, pause/resume, alerts and event logs. Arabic-friendly RTL design.
 
-- Implement independent per-route ContentQueue + PublishingRules.
-- Choose unique source/target keys, atomic queue claiming and per-destination publication records.
-- Configure daily caps, weekdays, times, timezone and pause/resume.
-- Reuse Postiz PostsService / Temporal without creating a parallel publishing engine.
-- **Gate:** repeat scans, overlaps, slot transitions and failures do not create duplicate posts.
+## Phase 08 — Hardening and deployment
 
-## 5. Stage 5 — Temporary media lifecycle
+Security review, integration/E2E and fault injection, performance and cost measurements, backups and recovery, staged Railway deploy, final acceptance then separately authorized production activation.
 
-- Retrieve media just in time with streaming where supported.
-- Validate format/size by platform; create temporary accessible media URL when required.
-- Reconcile platform processing, then physically remove temporary media after safe retention window; clean orphaned media.
-- **Gate:** successful/failed operations do not grow storage without bound.
+## Architectural decisions
 
-## 6. Stage 6 — Minimal management UI and alerts
+See docs/architecture/ARCHITECTURE.md and docs/decisions/ADR-0001-original-system.md.
 
-- Add source health, queue, schedule, delivery status, temporary media stats and error notifications inside existing Postiz.
-- Keep original editor, analytics and platform connectors.
-- **Gate:** all routes can be monitored and paused independently.
+## Current repository state
 
-## 7. Stage 7 — Regression, security and deployment
-
-- Unit/integration/E2E, replays, restart/partial failure, token expiry, media limits, Meta idempotency and retention tests.
-- Check upstream integration, license compliance, secret hygiene, backups and rollback.
-- Only after passing gates: staged Railway testing and then deliberate production activation.
-
-## Branch policy
-
-- main must be the untouched source baseline after import.
-- feature/telegram-publisher-foundation contains planning documentation only initially.
-- Follow-on features developed in isolated branches or commits following code review.
-- Stage transitions require an explicit completion report and user acceptance.
-
-**STOP:** Do not start Stage 2 until source import and ancestry verification are complete.
+- 'main' is an earlier bootstrap and is not a runnable Postiz application.
+- 'feature/telegram-publisher-foundation' retains historical plans based on importing Postiz; do not follow them.
+- The current build is isolated on 'build/phase-01-clean-foundation-20261013'.
+- Until stage acceptance, leave 'main', original branches and Railway unchanged.

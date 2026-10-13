@@ -1,0 +1,12 @@
+{
+  "name": "@social-publisher/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=22.12.0 <23"
+  }
+}
