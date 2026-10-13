@@ -189,3 +189,19 @@ test("destination credentials are encrypted and tied to correct destination id",
   await assert.rejects(readDestinationCredential(pool,waslDestination,randomBytes(32)));
   assert.equal(await readDestinationCredential(pool,religiousDestination,key),null);
 });
+
+test("expired publish claim marks the publication record uncertain in the same transaction",async()=>{
+  const publicationId=await withinTransaction(pool,client=>
+    createDeliveryIntent(client,religiousItem,religiousDestination)
+  );
+  assert.ok(publicationId);
+  const claimed=await claimJobs(pool);
+  assert.equal(claimed.length,1);
+  assert.equal(claimed[0]?.kind,"PUBLISH");
+  await pool.query("UPDATE outbox_jobs SET leased_until=now()-interval '1 minute' WHERE id=$1",[claimed[0]!.id]);
+  assert.equal(await quarantineExpiredClaims(pool),1);
+  const publication=await pool.query<{state:string}>(
+    "SELECT state FROM publication_records WHERE id=$1",[publicationId]);
+  assert.equal(publication.rows[0]?.state,"UNCERTAIN");
+  assert.equal((await claimJobs(pool)).length,0);
+});
