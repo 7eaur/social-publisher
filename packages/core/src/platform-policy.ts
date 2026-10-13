@@ -15,10 +15,21 @@ export type CompatibilityResult =
       readonly reason: "VISUAL_REQUIRED" | "MIXED_ALBUM_REQUIRES_VALIDATION";
     };
 
+const validDestinations: ReadonlySet<string> = new Set(["FACEBOOK", "INSTAGRAM"]);
+const validContentKinds: ReadonlySet<string> = new Set([
+  "TEXT", "IMAGE", "VIDEO", "IMAGE_ALBUM", "VIDEO_ALBUM", "MIXED_ALBUM"
+]);
+
 export function assessCompatibility(
   destination: Destination,
   kind: ContentKind
 ): CompatibilityResult {
+  if (!validDestinations.has(destination)) {
+    throw new RangeError("Unknown destination");
+  }
+  if (!validContentKinds.has(kind)) {
+    throw new RangeError("Unknown content kind");
+  }
   // No adapter should silently discard media in a mixed album.
   if (kind === "MIXED_ALBUM") {
     return { eligible: false, reason: "MIXED_ALBUM_REQUIRES_VALIDATION" };

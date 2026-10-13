@@ -23,3 +23,8 @@ test("mixed albums require an explicit adapter decision for both platforms", () 
     });
   }
 });
+
+test("unknown external platform/type input is rejected, not treated as publishable", () => {
+  assert.throws(() => assessCompatibility("UNKNOWN" as "FACEBOOK", "IMAGE"), RangeError);
+  assert.throws(() => assessCompatibility("FACEBOOK", "UNKNOWN" as "IMAGE"), RangeError);
+});

@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
-    "typescript": "^5.9.3"
-  }
+    "@types/node": "22.15.0",
+    "typescript": "5.9.3"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }
