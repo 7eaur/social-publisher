@@ -175,3 +175,17 @@ test("Instagram text-only content is skipped without producing a publish job", a
   );
   assert.equal(jobs.rows[0]?.n,0);
 });
+
+test("destination credentials are encrypted and tied to correct destination id", async () => {
+  const {randomBytes}=await import("node:crypto");
+  const {saveDestinationCredential,readDestinationCredential}=await import("../src/credentials.ts");
+  const key=randomBytes(32);
+  assert.equal(await saveDestinationCredential(pool,waslDestination,"test-token-not-for-production",key),true);
+  assert.equal(await readDestinationCredential(pool,waslDestination,key),"test-token-not-for-production");
+  const row=await pool.query<{hex:string}>(
+    "SELECT encode(credentials_ciphertext,'hex') AS hex FROM destinations WHERE id=$1",
+    [waslDestination]);
+  assert.notEqual(row.rows[0]!.hex,Buffer.from("test-token-not-for-production").toString("hex"));
+  await assert.rejects(readDestinationCredential(pool,waslDestination,randomBytes(32)));
+  assert.equal(await readDestinationCredential(pool,religiousDestination,key),null);
+});
