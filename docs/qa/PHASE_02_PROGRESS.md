@@ -1,7 +1,7 @@
 # Phase 02 — Database / Security / Jobs (in progress)
 
 **Branch:** build/phase-02-persistence-security-20261013  
-**Stage:** Database transactions + initial security primitives; API/login UI not yet complete.
+**Stage:** Backend foundation implemented and under acceptance review; no UI or live publishing.
 
 ## Completed or committed
 
@@ -12,13 +12,13 @@
 - [x] Foreign-key integrity between a Telegram source and its route.
 - [x] Password hashing/verification (scrypt), per-user sessions with hashed tokens and CSRF secrets.
 - [x] AES-256-GCM credential envelope with context binding, roles/permissions and persistent login throttle primitives.
-- [ ] HTTP admin API with mandatory authenticated sessions, CSRF/origin control, route RBAC, health/readiness and audit.
-- [ ] Wire secret storage/credentials into authenticated persistence API.
-- [ ] Verify real PostgreSQL integration tests and security tests all green.
-- [ ] Re-review concurrency, token revocation, lockout and disconnect handling.
+- [x] HTTP admin API with authenticated sessions, CSRF/origin checks, route RBAC, health/readiness and audit.
+- [x] Encrypted credential persistence repository implemented and tested (not yet exposed through a remote-account connection endpoint).
+- [x] PostgreSQL integration, HTTP API integration, security and core domain tests running on CI.
+- [x] Tested concurrent job/slot claims, expiry quarantine, token revocation, account RBAC and encryption.\n- [ ] Production security hardening including proxy/TLS, distributed throttling, key rotation, backups and remote reconciliation (deployment gate).
 
 ## Explicit limitations
 
 None of this is a live/social connected publisher. The login throttle is keyed by HMAC-normalized email for predictable account lockout; supplement with IP/device risk limiting and monitoring on a future authenticated API. Quarantining all expired jobs is intentionally conservative; production will need operational reconciliation, not blind retries. Avoid printing session tokens, encryption keys or passwords in logs.
 
-**Gate:** cannot close Phase 02 until a protected admin API, tests and security review pass. No Railway deployment.
+**Gate:** core Phase 02 acceptance is complete after a passing current-head CI check; production hardening is explicitly deferred to Phase 08. Phase 03 requires user approval. No Railway deployment.
