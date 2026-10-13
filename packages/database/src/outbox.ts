@@ -68,12 +68,34 @@ export async function acknowledgeJob(pool: Pool, id: string, leaseToken: string)
  * An operator/reconciler must establish the remote result first.
  */
 export async function quarantineExpiredClaims(pool: Pool): Promise<number> {
-  const result = await pool.query(
-    `UPDATE outbox_jobs
-     SET state='UNCERTAIN',lease_token=NULL,leased_until=NULL,updated_at=now()
-     WHERE state='CLAIMED' AND leased_until<=now()`
-  );
-  return result.rowCount ?? 0;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    try {
+      const result = await client.query<{kind:string;payload:{publicationId?:string}}>(
+        `UPDATE outbox_jobs
+         SET state='UNCERTAIN',lease_token=NULL,leased_until=NULL,updated_at=now()
+         WHERE state='CLAIMED' AND leased_until<=now()
+         RETURNING kind,payload`
+      );
+      const publications = result.rows.filter(row=>row.kind==="PUBLISH")
+        .map(row=>row.payload.publicationId).filter((id):id is string=>typeof id==="string");
+      if (publications.length>0) {
+        await client.query(
+          `UPDATE publication_records SET state='UNCERTAIN',updated_at=now()
+           WHERE id=ANY($1::uuid[]) AND state IN ('PENDING','RESERVED','SUBMITTING')`,
+          [publications]
+        );
+      }
+      await client.query("COMMIT");
+      return result.rowCount ?? 0;
+    } catch(error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    client.release();
+  }
 }
 
 export async function createDeliveryIntent(
