@@ -12,14 +12,14 @@
 ## Proposed repository evolution
 
 - packages/core: platform-neutral pure domain (phase 01).
-- packages/application: use cases and ports (phase 02).
-- packages/database: Prisma schema / migrations and repositories (phase 02).
+- packages/application: use cases and ports (incremental with phase 03/04).
+- packages/database: versioned PostgreSQL SQL migrations + typed pg repositories (implemented in phase 02).
 - packages/providers: external platform adapters, isolated (phases 03, 05).
-- apps/api: NestJS HTTP API (phase 02).
-- apps/worker: publisher/scheduler ingestion workers (phases 02–04).
+- packages/security: scrypt, opaque sessions, CSRF, AES-256-GCM and RBAC (implemented in phase 02).\n- apps/api: Fastify administrative HTTP API (implemented in phase 02).
+- apps/worker: publisher/scheduler and Telegram workers (planned phases 03–05).
 - apps/web: Next.js admin interface (phase 07).
 
-The above are intended directories; unimplemented packages are not fake stubs.
+Implemented modules live in the tree; planned packages/worker/frontend are not represented by fake scaffolds. ADR-0002 and ADR-0003 record the driver/framework decisions.
 
 ## Planned consistency model
 
