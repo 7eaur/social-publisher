@@ -74,3 +74,22 @@ test("login, CSRF protection, route pause, audit and logout",async()=>{
   const audit=await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE entity_id=$1",[routeId]);
   assert.equal(audit.rows[0]?.n,1);
 });
+
+test("viewer role cannot change routes even with valid session and CSRF",async()=>{
+  const {createSession}=await import("../../../packages/security/src/sessions.ts");
+  const viewerEmail="viewer-"+randomUUID()+"@test.invalid";
+  const viewer=await pool.query<{id:string}>(
+    "INSERT INTO users(email,password_hash,role) VALUES($1,$2,'VIEWER') RETURNING id",
+    [viewerEmail,await hashPassword("another-long-test-password")]
+  );
+  const session=await createSession(pool,viewer.rows[0]!.id);
+  const result=await app.inject({
+    method:"POST",url:"/api/routes/"+routeId+"/pause",
+    headers:{
+      origin,
+      cookie:"sp_session="+session.sessionToken,
+      "x-csrf-token":session.csrfToken
+    }
+  });
+  assert.equal(result.statusCode,403);
+});
