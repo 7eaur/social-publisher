@@ -88,7 +88,7 @@ after(async () => { await pool.end(); });
 
 test("migration checksum and schema are enforced", async () => {
   const count = await pool.query("SELECT count(*)::int AS n FROM schema_migrations");
-  assert.equal(count.rows[0]?.n, 1);
+  assert.equal(count.rows[0]?.n, 2);
 });
 
 test("two workers cannot create duplicate publication intent for same destination", async () => {
