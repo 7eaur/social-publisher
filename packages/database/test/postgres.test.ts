@@ -11,6 +11,9 @@ import { reserveScheduleSlot } from "../src/scheduling.ts";
 if (!process.env.DATABASE_URL) {
   throw new Error("Database integration tests require DATABASE_URL");
 }
+if (process.env.NODE_ENV !== "test" || !new URL(process.env.DATABASE_URL).pathname.endsWith("_test")) {
+  throw new Error("Database tests must use a dedicated test database");
+}
 const pool = createDatabasePool();
 let waslRoute: string;
 let religiousRoute: string;
