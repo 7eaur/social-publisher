@@ -14,5 +14,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["packages/core/src/**/*.ts", "packages/core/test/**/*.ts"]
+  "include": ["packages/**/*.ts", "apps/**/*.ts"]
 }

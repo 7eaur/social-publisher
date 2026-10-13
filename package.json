@@ -1,17 +1,23 @@
 {
   "name": "social-publisher",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "engines": {
     "node": ">=22.12.0 <23"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test packages/core/test/schedule.test.ts packages/core/test/platform-policy.test.ts packages/core/test/publication.test.ts packages/core/test/ids.test.ts",
+    "test": "node --experimental-strip-types --test packages/core/test/*.test.ts",
+    "test:db": "node --experimental-strip-types --test packages/database/test/*.test.ts",
+    "db:migrate": "node --experimental-strip-types packages/database/src/migrate.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "pg": "8.13.3"
   },
   "devDependencies": {
     "@types/node": "22.15.0",
+    "@types/pg": "8.11.11",
     "typescript": "5.9.3"
   },
   "workspaces": [
