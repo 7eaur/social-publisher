@@ -12,7 +12,7 @@ test("scrypt password verification checks valid and invalid passwords",async()=>
   assert.equal(await verifyPassword("super-long-test-passphrase!",hash),true);
   assert.equal(await verifyPassword("not-the-same-password",hash),false);
   assert.equal(await verifyPassword("super-long-test-passphrase!",hash.replace("scrypt$","md5$")),false);
-  assert.throws(()=>hashPassword("too-short"),RangeError);
+  await assert.rejects(hashPassword("too-short"),RangeError);
 });
 
 test("GCM secret envelope encrypts and authenticates destination binding",()=>{
