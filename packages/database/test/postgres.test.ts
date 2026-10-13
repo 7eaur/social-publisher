@@ -151,3 +151,27 @@ test("source item cannot be reserved under an unrelated route", async () => {
     null
   );
 });
+
+test("Instagram text-only content is skipped without producing a publish job", async () => {
+  const source = await pool.query<{source_id:string}>(
+    "SELECT source_id FROM routes WHERE id=$1",[religiousRoute]
+  );
+  const item = await pool.query<{id:string}>(
+    `INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,source_created_at)
+     VALUES($1,$2,44,'TEXT',now()) RETURNING id`,
+    [religiousRoute,source.rows[0]!.source_id]
+  );
+  const id = await withinTransaction(pool,client=>
+    createDeliveryIntent(client,item.rows[0]!.id,religiousDestination)
+  );
+  assert.ok(id);
+  const status = await pool.query<{state:string}>(
+    "SELECT state FROM publication_records WHERE id=$1",[id]
+  );
+  assert.equal(status.rows[0]?.state,"SKIPPED_UNSUPPORTED");
+  const jobs = await pool.query<{n:number}>(
+    "SELECT count(*)::int AS n FROM outbox_jobs WHERE dedup_key=$1",
+    ["publication:"+id]
+  );
+  assert.equal(jobs.rows[0]?.n,0);
+});
