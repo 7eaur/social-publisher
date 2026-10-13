@@ -4,7 +4,7 @@
 **Decision:** Build an original, narrowly scoped system from scratch.  
 **Repository:** 7eaur/social-publisher (private).  
 **Architecture reference only:** https://github.com/gitroomhq/postiz-app  
-**Status:** Phase 01 in progress; no production system exists.
+**Status:** Phase 02 backend foundation implemented and under acceptance review; no production system exists.
 
 ## Product
 
@@ -32,12 +32,12 @@ For text-only content, Facebook is eligible and Instagram is skipped with an exp
 
 ## Architecture boundary
 
-Our own TypeScript domain core, a NestJS API, a PostgreSQL-backed transactional queue/outbox worker, provider adapters and a Next.js management UI are planned. Do not introduce Redis or Temporal simply because Postiz uses them; the queue correctness must be proven first, with fewer deployable services.
+Implemented: original TypeScript domain core, Fastify authenticated administrative API and PostgreSQL transactional outbox/SQL migrations. Planned: Telegram and Meta provider adapters, schedule/queue worker process and Next.js admin interface. Redis or Temporal remain optional only if measured requirements justify them.
 
 **Postiz is not a dependency.** Read-only study and comparison are allowed. Any future decision to reuse an upstream code fragment requires a separate license-compliance review; do not paste code or copy upstream files by default.
 
 ## What is actually built now
 
-Phase 01 creates only repository architecture documentation, a minimal TypeScript package of domain rules and unit tests. Telegram, Meta, storage, authentication, database and deployment are not yet implemented.
+Phase 01 domain rules and Phase 02 PostgreSQL/auth/API foundation are implemented and tested with an ephemeral database. Telegram ingestion, Meta publishing, media storage pipeline, worker runner, management UI and deployment have not begun.
 
 **Approval gate:** each phase is reviewed and tested before starting the next one.
