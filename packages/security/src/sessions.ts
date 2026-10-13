@@ -17,11 +17,12 @@ export async function createSession(pool: Pool, userId: string): Promise<Session
   const sessionToken = randomBytes(32).toString("hex");
   const csrfToken = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
-  await pool.query(
+  const inserted = await pool.query(
     `INSERT INTO auth_sessions(user_id,token_hash,csrf_hash,expires_at)
-     SELECT id,$2,$3,$4 FROM users WHERE id=$1::uuid AND enabled=true`,
+     SELECT id,$2,$3,$4 FROM users WHERE id=$1::uuid AND enabled=true RETURNING id`,
     [userId,hashOpaqueToken(sessionToken),hashOpaqueToken(csrfToken),expiresAt]
   );
+  if (inserted.rowCount !== 1) throw new Error("Session user not found or disabled");
   return { sessionToken,csrfToken,expiresAt };
 }
 
