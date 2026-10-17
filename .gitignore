@@ -1,0 +1,25 @@
+# dependencies / build
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+*.pem
+*.p12
+*.key
+secrets/
+tmp/
+uploads/
+
+# tooling
+.DS_Store
+.idea/
+.vscode/

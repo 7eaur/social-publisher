@@ -1,0 +1,21 @@
+{
+  "name": "social-publisher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test packages/core/test/schedule.test.ts packages/core/test/platform-policy.test.ts packages/core/test/publication.test.ts packages/core/test/ids.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.0",
+    "typescript": "5.9.3"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
+}
