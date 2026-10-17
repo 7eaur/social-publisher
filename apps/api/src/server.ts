@@ -140,8 +140,8 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
       const userId=inserted.rows[0]?.id;
       if(!userId)throw new Error("First administrator creation failed");
       await client.query(
-        "INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,'USER_BOOTSTRAP','USER',$1)",
-        [userId]
+        "INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1::uuid,'USER_BOOTSTRAP','USER',$2::text)",
+        [userId,userId]
       );
       return true;
     });
