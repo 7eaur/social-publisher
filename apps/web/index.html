@@ -4,93 +4,109 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Social Publisher — لوحة الإدارة</title>
+  <meta name="theme-color" content="#102c4f">
+  <meta name="description" content="لوحة إدارة Social Publisher للمصادر، الحسابات، الجدولة ومراقبة النشر.">
+  <title>Social Publisher | لوحة الإدارة</title>
   <link rel="stylesheet" href="/ui/style.css">
   <script src="/ui/app.js" type="module"></script>
 </head>
 <body>
   <div class="shell">
-    <aside class="sidebar">
-      <div class="logo"><span class="logo-mark">SP</span><span>Social Publisher<small>منصة إدارة النشر</small></span></div>
-      <nav aria-label="الأقسام">
-        <a href="#overview" class="active">نظرة عامة</a>
-        <a href="#routes">مسارات النشر</a>
-        <a href="#queue">قائمة المحتوى</a>
-        <a href="#setup">الإعدادات</a>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-icon" aria-hidden="true">SP</span><span class="brand-copy"><b>Social Publisher</b><small>مركز إدارة النشر الآلي</small></span></div>
+      <div class="workspace-tag"><span class="live-dot" aria-hidden="true"></span> بيئة التطوير <span class="workspace-muted">/ بدون نشر حي</span></div>
+      <p class="sidebar-heading">مساحة العمل</p>
+      <nav class="main-navigation" aria-label="أقسام النظام">
+        <a data-nav="overview" href="#overview" class="active"><span class="nav-icon">◫</span>نظرة عامة</a>
+        <a data-nav="routes" href="#routes"><span class="nav-icon">⤳</span>مسارات المحتوى</a>
+        <a data-nav="queue" href="#queue"><span class="nav-icon">▤</span>قائمة المحتوى</a>
+        <a data-nav="planner" href="#planner"><span class="nav-icon">▦</span>التقويم والجدولة</a>
+        <a data-nav="accounts" href="#accounts"><span class="nav-icon">◎</span>الحسابات والمصادر</a>
+        <a data-nav="settings" href="#settings"><span class="nav-icon">⚙</span>الإعداد والأمان</a>
       </nav>
-      <div class="side-foot">نسخة التطوير <span class="build">الحسابات غير متصلة</span></div>
-    </aside>
-    <main class="main">
-      <header class="top">
-        <div><p class="eyebrow">لوحة التحكم</p><h1>إدارة النشر الآلي</h1></div>
-        <button id="logout" class="outline hidden" type="button">تسجيل الخروج</button>
-      </header>
-      <div id="notice" role="status" aria-live="polite"></div>
-      <section id="login-panel" class="login-card">
-        <p class="eyebrow">تسجيل الدخول</p>
-        <h2>الدخول إلى حساب الإدارة</h2>
-        <p class="muted">لا يمكن عرض القنوات أو المنشورات دون جلسة موثّقة.</p>
-        <form id="login-form" autocomplete="on">
-          <label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label>
-          <label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label>
-          <button type="submit">دخول آمن</button>
-        </form>
-      </section>
-      <div id="dashboard" class="hidden">
-        <section id="overview" aria-label="نظرة عامة">
-          <div class="heading"><div><h2>نظرة عامة</h2><p class="muted">بيانات مباشرة من قاعدة البيانات</p></div><span id="setup-status" class="status">بانتظار الإعداد</span></div>
-          <div class="cards">
-            <article class="metric"><span>مصادر المحتوى</span><strong id="source-count">0</strong><small>تيليجرام</small></article>
-            <article class="metric"><span>الحسابات الجاهزة</span><strong id="destination-count">0</strong><small>فيسبوك وإنستغرام</small></article>
-            <article class="metric"><span>مهام معلقة</span><strong id="queue-count">0</strong><small>قائمة الانتظار</small></article>
-            <article class="metric"><span>المنشورات المؤكدة</span><strong id="published-count">0</strong><small>نتائج النشر</small></article>
-          </div>
-        </section>
-        <section id="routes" class="panel-section">
-          <div class="heading"><div><h2>مسارات النشر</h2><p class="muted">كل قناة لها حساباتها وجدولها المستقل</p></div></div>
-          <div id="route-list" class="route-list"><p class="empty">لم تُضف القنوات بعد. سنضيفها عند ربط جلسة تيليجرام.</p></div>
-        </section>
-        <section id="queue" class="panel-section">
-          <div class="heading"><div><h2>قائمة المحتوى</h2><p class="muted">المنشورات المفهرسة حسب تاريخها</p></div></div>
-          <div class="table-wrap"><table><thead><tr><th>المسار</th><th>المحتوى</th><th>النوع</th><th>الحالة</th></tr></thead><tbody id="queue-rows"></tbody></table></div>
-        </section>
-        <section id="setup" class="panel-section">
-          <div class="heading"><div><h2>إعداد المسارات والحسابات</h2><p class="muted">ننشئ المسودات الآن، ثم نربط جلسة تيليجرام وصلاحيات Meta لاحقًا. لا نشر تلقائي قبل تفعيل الحسابات.</p></div></div>
-          <div class="setup-grid">
-            <form class="setup-form" id="source-form">
-              <h3>مصدر تيليجرام</h3>
-              <label>اسم المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required></label>
-              <label>عنوان القناة<input name="label" placeholder="قناة المحتوى" required></label>
-              <label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required></label>
-              <button type="submit">حفظ المصدر كمسودة</button>
-            </form>
-            <form class="setup-form" id="destination-form">
-              <h3>حساب مستهدف</h3>
-              <label>المنصة<select name="platform"><option value="FACEBOOK">Facebook</option><option value="INSTAGRAM">Instagram</option></select></label>
-              <label>اسم العرض<input name="displayName" placeholder="صفحتنا الرسمية" required></label>
-              <label>معرّف الحساب<input name="accountId" placeholder="123456789" pattern="[0-9]+" required></label>
-              <button type="submit">حفظ الحساب كمسودة</button>
-            </form>
-            <form class="setup-form" id="attach-form">
-              <h3>ربط المسار بالحساب</h3>
-              <label>المسار<select name="routeId" class="route-select" required></select></label>
-              <label>الحساب<select name="destinationId" id="destination-select" required></select></label>
-              <button type="submit">ربط المسودتين</button>
-            </form>
-            <form class="setup-form" id="schedule-form">
-              <h3>إعداد جدول النشر</h3>
-              <label>المسار<select name="routeId" class="route-select" required></select></label>
-              <label>المنطقة الزمنية<input name="timeZone" value="Asia/Aden" required></label>
-              <label>أيام الأسبوع (1 الإثنين – 7 الأحد)<input name="isoWeekdays" value="1,2,3,4,5,6,7" required></label>
-              <label>الأوقات بصيغة 24 ساعة<input name="slots" value="09:00" required></label>
-              <label>الحد اليومي<input name="dailyLimit" type="number" min="1" max="50" value="1" required></label>
-              <button type="submit">حفظ الجدول</button>
-            </form>
-          </div>
-        </section>
+      <div class="sidebar-bottom">
+        <div class="sidebar-info"><span class="info-indicator"></span><div><b>وضع آمن</b><small>النشر الفعلي غير مفعّل</small></div></div>
+        <span class="version-tag">الإصدار التأسيسي • Social Publisher</span>
       </div>
-      <footer>يُفعّل النشر الحقيقي فقط بعد إعداد الجلسات والصلاحيات واجتياز الاختبارات.</footer>
-    </main>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-path"><button id="menu-toggle" class="icon-button mobile-only" aria-label="فتح القائمة" type="button">☰</button><span>مساحة العمل</span><span class="crumb-divider">/</span><b id="current-location">نظرة عامة</b></div>
+        <div class="topbar-actions"><span id="connection-label" class="connection-pill"><span class="status-dot"></span>بدون حسابات متصلة</span><span class="avatar">SP</span><button type="button" class="secondary-button hidden" id="logout">خروج</button></div>
+      </header>
+      <main class="main">
+        <div id="notice" role="status" aria-live="polite"></div>
+
+        <section id="login-panel" class="login-layout">
+          <div class="login-intro"><span class="eyebrow">SOCIAL PUBLISHER</span><h1>كل منشوراتك.<br>من مكان واحد.</h1><p>تحكم في مصادر تيليجرام وجداول النشر والحسابات، وتابع النتائج من لوحة عربية موحّدة.</p><div class="login-point">✓ معلومات الربط لا تظهر في الواجهة بعد حفظها</div><div class="login-point">✓ الصلاحيات وحالات النشر تدار من الخادم</div></div>
+          <form id="login-form" class="login-card" autocomplete="on">
+            <span class="eyebrow">الدخول الآمن</span><h2>مرحبًا بعودتك</h2><p class="muted">استخدم حساب الإدارة لفتح لوحة التحكم.</p>
+            <label>البريد الإلكتروني<input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></label>
+            <label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required placeholder="••••••••••••"></label>
+            <button class="primary-button" type="submit">تسجيل الدخول <span aria-hidden="true">←</span></button>
+            <p class="form-note">لا تُرسل أي جلسة أو رمز سري عبر المحادثة. أدخلها من إعدادات النظام فقط.</p>
+          </form>
+        </section>
+
+        <div id="dashboard" class="hidden">
+          <section class="view" data-view="overview">
+            <div class="page-header"><div><span class="eyebrow">لوحة القيادة / OVERVIEW</span><h1>نظرة شاملة على النشر</h1><p class="muted">حالة المصادر والحسابات والمهام تُقرأ مباشرةً من النظام، دون بيانات تجريبية مضلّلة.</p></div><a class="primary-link" href="#settings" data-go="settings">تهيئة مساحة العمل <span>←</span></a></div>
+            <div class="notice-banner"><div class="banner-mark">!</div><div><b>النظام في وضع إعداد آمن</b><p>يمكنك تجهيز جميع الإعدادات وحفظها؛ لن يبدأ إرسال منشورات حقيقية قبل التحقق والاعتماد.</p></div><span class="banner-tag">LIVE OFF</span></div>
+            <div class="metric-grid">
+              <article class="metric"><span class="metric-label">مصادر تيليجرام</span><strong id="source-count">0</strong><small id="source-hint">لا توجد مصادر مفعلة</small><span class="metric-icon cyan">⌁</span></article>
+              <article class="metric"><span class="metric-label">حسابات المنصات</span><strong id="destination-count">0</strong><small id="destination-hint">تحتاج التحقق من الربط</small><span class="metric-icon violet">◎</span></article>
+              <article class="metric"><span class="metric-label">المهام المعلّقة</span><strong id="queue-count">0</strong><small>مهام تنتظر المعالجة</small><span class="metric-icon amber">▤</span></article>
+              <article class="metric"><span class="metric-label">المنشورات المؤكدة</span><strong id="published-count">0</strong><small>نتائج مؤكدة من قاعدة البيانات</small><span class="metric-icon green">✓</span></article>
+            </div>
+            <div class="split-layout">
+              <article class="panel"><div class="panel-header"><div><h2>المسارات</h2><p class="muted">الحالة الحالية لكل مسار نشر</p></div><a href="#routes" data-go="routes" class="subtle-link">عرض الكل ←</a></div><div id="overview-routes" class="status-list"></div></article>
+              <article class="panel"><div class="panel-header"><div><h2>الجاهزية التشغيلية</h2><p class="muted">ما يلزم قبل تشغيل النظام</p></div></div><div id="readiness-list" class="readiness-list"></div></article>
+            </div>
+            <article class="panel"><div class="panel-header"><div><h2>أحدث المحتويات</h2><p class="muted">ملخص آخر ما تم فهرسته</p></div><a href="#queue" data-go="queue" class="subtle-link">قائمة المحتوى ←</a></div><div id="overview-queue" class="compact-list"></div></article>
+          </section>
+
+          <section class="view hidden" data-view="routes">
+            <div class="page-header"><div><span class="eyebrow">CONTENT ROUTES</span><h1>مسارات النشر</h1><p class="muted">مصدر مستقل، وجدول مستقل، وحسابات محددة لكل مسار.</p></div><a href="#settings" data-go="settings" class="primary-link">إضافة مسار ←</a></div>
+            <div id="route-list" class="route-grid"></div>
+          </section>
+
+          <section class="view hidden" data-view="queue">
+            <div class="page-header"><div><span class="eyebrow">CONTENT LIBRARY</span><h1>مكتبة المنشورات</h1><p class="muted">المحتوى المفهرس من تيليجرام بحالة النشر لكل وجهة.</p></div><span class="soft-pill">المصدر الأصلي محفوظ في تيليجرام</span></div>
+            <div class="panel"><div class="panel-toolbar"><label class="search-field"><span>⌕</span><input id="queue-search" type="search" placeholder="ابحث في التعليق أو المسار" aria-label="بحث في المحتوى"></label><span id="queue-total" class="soft-pill">0 منشور</span></div><div class="table-wrap"><table><thead><tr><th>المسار</th><th>المحتوى</th><th>النوع</th><th>التقدم</th><th>التاريخ</th></tr></thead><tbody id="queue-rows"></tbody></table></div></div>
+          </section>
+
+          <section class="view hidden" data-view="planner">
+            <div class="page-header"><div><span class="eyebrow">PUBLISHING CALENDAR</span><h1>التقويم والجدولة</h1><p class="muted">راجع أيام النشر والمواعيد لكل مسار؛ الأوقات بحسب المنطقة الزمنية المحددة.</p></div><a href="#settings" data-go="settings" class="primary-link">تعديل الجدول ←</a></div>
+            <div class="panel"><div class="panel-header"><div><h2>الخطة الأسبوعية</h2><p class="muted">معاينة قواعد الجدولة الحالية، وليست إثباتًا لوجود منشورات منشورة</p></div></div><div id="calendar-grid" class="calendar-grid"></div></div>
+            <div class="panel"><div class="panel-header"><h2>جداول المسارات</h2></div><div id="schedule-list" class="status-list"></div></div>
+          </section>
+
+          <section class="view hidden" data-view="accounts">
+            <div class="page-header"><div><span class="eyebrow">CONNECTED CHANNELS</span><h1>المصادر والحسابات</h1><p class="muted">تابع بيانات الربط وحالة كل اتصال دون إظهار الجلسات أو رموز الوصول.</p></div><a href="#settings" data-go="settings" class="primary-link">ربط حساب ←</a></div>
+            <div class="split-layout"><article class="panel"><div class="panel-header"><h2>قنوات تيليجرام</h2></div><div id="telegram-accounts" class="status-list"></div></article><article class="panel"><div class="panel-header"><h2>حسابات النشر</h2></div><div id="social-accounts" class="status-list"></div></article></div>
+          </section>
+
+          <section class="view hidden" data-view="settings" id="setup">
+            <div class="page-header"><div><span class="eyebrow">SETUP CENTER</span><h1>مركز الإعدادات والربط</h1><p class="muted">رتّب الإعدادات على أربع خطوات. تُخزّن بيانات الدخول الحساسة مشفّرة ولا تُعرض مرة أخرى.</p></div><span id="secret-store-indicator" class="soft-pill">التحقق من التشفير...</span></div>
+            <div class="setup-steps"><span>١ · إنشاء المصادر</span><span>٢ · إضافة الحسابات</span><span>٣ · حفظ بيانات الربط</span><span>٤ · إعداد الجداول</span></div>
+            <div class="setup-grid">
+              <form id="source-form" class="setup-form"><span class="step-label">الخطوة 01 / TELEGRAM</span><h3>إضافة قناة كمصدر</h3><p class="muted">أنشئ مسارًا مرتبطًا بقناة محددة؛ يبقى معطلًا إلى حين التحقق.</p><label>رمز المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required maxlength="64"></label><label>الاسم الظاهر<input name="label" placeholder="قناة وصل تك" required maxlength="120"></label><label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required pattern="-?[0-9]{5,30}"></label><button class="primary-button" type="submit">حفظ مصدر جديد</button></form>
+              <form id="destination-form" class="setup-form"><span class="step-label">الخطوة 02 / SOCIAL</span><h3>إضافة حساب نشر</h3><p class="muted">حدد الصفحة أو الحساب المهني المطلوب قبل إدخال بيانات الاتصال.</p><label>المنصة<select name="platform"><option value="FACEBOOK">Facebook Page</option><option value="INSTAGRAM">Instagram Professional</option></select></label><label>اسم الحساب<input name="displayName" required maxlength="120" placeholder="الصفحة الرسمية"></label><label>المعرّف الرقمي<input name="accountId" required pattern="[0-9]+" placeholder="123456789"></label><button class="primary-button" type="submit">حفظ الحساب كمسودة</button></form>
+              <form id="attach-form" class="setup-form"><span class="step-label">الخطوة 02 / ROUTING</span><h3>ربط الحساب بالمسار</h3><p class="muted">يمنع النظام اشتراك الحساب نفسه في مسارين متعارضين.</p><label>المسار<select class="route-select" name="routeId" required></select></label><label>حساب النشر<select id="destination-select" name="destinationId" required></select></label><button class="primary-button" type="submit">ربط المسار بالحساب</button></form>
+              <form id="schedule-form" class="setup-form"><span class="step-label">الخطوة 04 / SCHEDULE</span><h3>جدولة النشر</h3><p class="muted">الأيام: الإثنين=1 إلى الأحد=7. الأوقات بصيغة 24 ساعة.</p><label>المسار<select class="route-select" name="routeId" required></select></label><label>المنطقة الزمنية<input name="timeZone" value="Asia/Aden" required></label><label>أيام الأسبوع<input name="isoWeekdays" value="1,2,3,4,5,6,7" required></label><label>الأوقات (مفصولة بفاصلة)<input name="slots" value="09:00" required placeholder="09:00, 18:00"></label><label>الحد اليومي<input name="dailyLimit" type="number" min="1" max="50" value="1" required></label><button class="primary-button" type="submit">حفظ جدول المسار</button></form>
+            </div>
+            <div class="section-heading"><span class="eyebrow">ENCRYPTED CREDENTIALS</span><h2>خزنة بيانات الربط</h2><p class="muted">هذه البيانات لا تُحفَظ في المتصفح أو في المستودع. لا تعني تعبئة النموذج أن الحساب تم التحقق منه.</p></div>
+            <div id="credential-setup" class="setup-grid">
+              <form id="telegram-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / TELEGRAM SESSION</span><h3>جلسة تيليجرام</h3><p class="muted">مخصصة لجلسة مصرّح بها مسبقًا. لا ننشئ رموز تحقق أو نسحب قنوات غير محددة.</p><label>المصدر<select id="telegram-secret-source" name="sourceId" required></select></label><label>API ID<input name="apiId" type="number" min="1" max="2147483647" required autocomplete="off"></label><label>API Hash<input name="apiHash" type="password" required autocomplete="new-password" maxlength="512"></label><label>Session String<textarea name="sessionString" required rows="3" maxlength="16000" spellcheck="false" placeholder="أدخل الجلسة المصرح بها هنا فقط"></textarea></label><button type="submit" class="primary-button">حفظ مشفّر وإبقاء القناة معطّلة</button></form>
+              <form id="meta-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / META ACCESS</span><h3>رمز حساب Meta</h3><p class="muted">احفظ رمز وصول مصرحًا به لصفحتك أو لحسابك المهني. التفعيل ينتظر فحص الصلاحيات.</p><label>الحساب<select name="destinationId" id="meta-secret-destination" required></select></label><label>Access Token<textarea name="accessToken" required rows="5" maxlength="16000" spellcheck="false" placeholder="رمز الحساب — لن يُعرض بعد الحفظ"></textarea></label><button type="submit" class="primary-button">حفظ الرمز مشفّرًا</button></form>
+            </div>
+            <div class="panel security-notes"><h3>ملاحظة أمنية</h3><p>يلزم توفير مفتاح تشفير عام للتثبيت عبر مدير أسرار الاستضافة. ولا نعرض أي قيمة سرية بعد حفظها. لا يتم تشغيل نشر حقيقي تلقائيًا عند حفظ البيانات.</p></div>
+          </section>
+        </div>
+        <footer class="main-footer"><span>Social Publisher © 2026</span><span>تطوير مستقل • Postiz مرجع هندسي فقط</span></footer>
+      </main>
+    </div>
   </div>
 </body>
 </html>
