@@ -15,7 +15,8 @@
     "api:start": "node --experimental-strip-types apps/api/src/start.ts",
     "admin:bootstrap": "node --experimental-strip-types apps/api/src/bootstrap-admin.ts",
     "test:telegram:db": "node --experimental-strip-types --test packages/telegram/test/sync.test.ts",
-    "worker:start": "node --experimental-strip-types apps/worker/src/start.ts"
+    "worker:start": "node --experimental-strip-types apps/worker/src/start.ts",
+    "test:web:syntax": "node --check apps/web/app.js"
   },
   "dependencies": {
     "pg": "8.13.3",
