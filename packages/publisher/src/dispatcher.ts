@@ -111,15 +111,21 @@ export async function dispatchNextPublication(
  if(!job)return "IDLE";
  const ctx=await prepareClaim(pool,job);
  if(!ctx)return "IDLE";
+ let result:{remoteId:string;remoteUrl?:string};
  try{
-   const result=await adapter.publish(ctx);
-   if(!result.remoteId.trim())throw new Error("Missing remote publication ID");
-   await finalize(pool,job,"CONFIRMED",result);
-   return "CONFIRMED";
+   result=await adapter.publish(ctx);
  }catch(error){
    const isDefinitive=error instanceof DefinitiveRemoteRejection && error.status>=400 && error.status<500;
    const status=isDefinitive?"PERMANENT_FAILURE":"UNCERTAIN";
    await finalize(pool,job,status,{code:isDefinitive?"REMOTE_REJECTED":"REMOTE_OUTCOME_UNKNOWN"});
    return status;
  }
+ if(!result.remoteId || !result.remoteId.trim()){
+   await finalize(pool,job,"UNCERTAIN",{code:"INVALID_REMOTE_ACK"});
+   return "UNCERTAIN";
+ }
+ // A DB error during finalization is NOT evidence of remote failure. Let the
+ // claim expire into UNCERTAIN; never issue another remote call automatically.
+ await finalize(pool,job,"CONFIRMED",result);
+ return "CONFIRMED";
 }
