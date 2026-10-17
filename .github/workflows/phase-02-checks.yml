@@ -47,3 +47,5 @@ jobs:
         run: npm run test:db
       - name: Authenticated API integration tests
         run: npm run test:api
+      - name: Telegram offline indexing integration tests
+        run: npm run test:telegram:db
