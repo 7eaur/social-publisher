@@ -1,6 +1,6 @@
 /* Browser UI: same-origin HttpOnly cookie, no secret/token persistence. */
 const $ = id => document.getElementById(id);
-const state = { csrf:"", me:null, catalog:{routes:[],sources:[],destinations:[]}, summary:null, queue:[], schedules:[] };
+const state = { csrf:"", me:null, catalog:{routes:[],sources:[],destinations:[]}, summary:null, queue:[], schedules:[], integrations:[] };
 const names = {overview:"نظرة عامة",routes:"مسارات المحتوى",queue:"قائمة المحتوى",planner:"التقويم والجدولة",accounts:"الحسابات والمصادر",settings:"الإعداد والأمان"};
 const days = ["الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"];
 const kindNames={TEXT:"نص",IMAGE:"صورة",VIDEO:"فيديو",IMAGE_ALBUM:"ألبوم صور",VIDEO_ALBUM:"ألبوم فيديو",MIXED_ALBUM:"ألبوم مختلط"};
@@ -213,6 +213,27 @@ function renderSetup(){
  selectOptions("destination-select",state.catalog.destinations,d=>d.platform+" — "+d.display_name);
  selectOptions("telegram-secret-source",state.catalog.sources,s=>s.label);
  selectOptions("meta-secret-destination",state.catalog.destinations,d=>d.platform+" — "+d.display_name);
+ const vault=$("integration-status-list");vault.replaceChildren();
+ const descriptions={META_APP_ID:"Meta App ID",META_APP_SECRET:"Meta App Secret",
+ STORAGE_ACCESS_KEY_ID:"Storage Access Key",STORAGE_SECRET_ACCESS_KEY:"Storage Secret Key",
+ STORAGE_BUCKET:"Storage Bucket",STORAGE_REGION:"Storage Region",
+ STORAGE_ENDPOINT:"Storage Endpoint",STORAGE_PUBLIC_HOST:"Staging Host"};
+ for(const setting of state.integrations){
+   const item=statusItem(el("span","◆","list-icon"),descriptions[setting.name]||setting.name,
+     "إعداد تثبيت محفوظ داخل الخادم",setting.configured?"محفوظ مشفّر":"غير مضبوط",setting.configured?"pending":"");
+   if(setting.configured && state.me.role==="ADMIN"){
+     const revoke=el("button","إلغاء","small-button danger-button");revoke.type="button";
+     revoke.addEventListener("click",async()=>{
+       if(!window.confirm("إلغاء هذا الإعداد وتعطيل مسارات النشر؟"))return;
+       try{await mutate("/api/setup/integrations/"+encodeURIComponent(setting.name),{method:"DELETE"});
+         notice("أُلغي الإعداد المشفر وأوقفت المسارات.");await load();}
+       catch(e){issue(e);}
+     });
+     item.append(revoke);
+   }
+   vault.append(item);
+ }
+ $("vault-section").classList.toggle("hidden",state.me.role!=="ADMIN");
  const secured=state.catalog.secretStoreReady;
  $("secret-store-indicator").textContent=secured?"خزنة التشفير جاهزة":"مفتاح التشفير لم يُضبط بالخادم";
  $("credential-setup").classList.toggle("hidden",state.me.role!=="ADMIN");
@@ -222,12 +243,12 @@ function renderSetup(){
  });
 }
 async function load(){
- const [summary,queue,catalog,me,schedules]=await Promise.all([
+ const [summary,queue,catalog,me,schedules,integrations]=await Promise.all([
    request("/api/dashboard"),request("/api/queue"),request("/api/setup/catalog"),
-   request("/api/me"),request("/api/schedules")
+   request("/api/me"),request("/api/schedules"),request("/api/setup/integrations")
  ]);
  state.summary=summary;state.queue=queue.items||[];state.catalog=catalog;
- state.me=me;state.schedules=schedules.schedules||[];
+ state.me=me;state.schedules=schedules.schedules||[];state.integrations=integrations.integrations||[];
  $("login-panel").classList.add("hidden");$("dashboard").classList.remove("hidden");
  $("logout").classList.remove("hidden");
  renderOverview();renderRoutes();renderQueue();renderPlanner();renderAccounts();renderSetup();navigate();
@@ -272,6 +293,10 @@ bindForm("telegram-secret-form",d=>({
 bindForm("meta-secret-form",d=>({
  path:"/api/setup/meta/"+encodeURIComponent(String(d.get("destinationId")))+"/credentials",method:"PUT",
  body:{accessToken:String(d.get("accessToken"))}
+}),{secret:true});
+bindForm("integration-secret-form",d=>({
+ path:"/api/setup/integrations/"+encodeURIComponent(String(d.get("name"))),method:"PUT",
+ body:{value:String(d.get("value"))}
 }),{secret:true});
 $("queue-search").addEventListener("input",renderQueue);
 window.addEventListener("hashchange",navigate);
