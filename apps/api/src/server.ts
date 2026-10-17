@@ -1,3 +1,4 @@
+import {readFile} from "node:fs/promises";
 import {dashboardSnapshot,queuePreview,schedulesPreview} from "./read-model.ts";
 import {validateScheduleRule,type ScheduleRule} from "../../../packages/core/src/schedule.ts";
 import {randomBytes} from "node:crypto";
@@ -42,7 +43,7 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     reply.header("x-content-type-options","nosniff");
     reply.header("referrer-policy","no-referrer");
     reply.header("x-frame-options","DENY");
-    reply.header("content-security-policy","default-src 'none'");
+    reply.header("content-security-policy","default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
     return payload;
   });
   app.setErrorHandler((err,_req,reply) => {
@@ -57,6 +58,15 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     return identity;
   }
 
+  app.get("/",async(_request,reply)=>
+    reply.type("text/html; charset=utf-8").send(await readFile(new URL("../../web/index.html",import.meta.url),"utf8"))
+  );
+  app.get("/ui/app.js",async(_request,reply)=>
+    reply.type("text/javascript; charset=utf-8").send(await readFile(new URL("../../web/app.js",import.meta.url),"utf8"))
+  );
+  app.get("/ui/style.css",async(_request,reply)=>
+    reply.type("text/css; charset=utf-8").send(await readFile(new URL("../../web/style.css",import.meta.url),"utf8"))
+  );
   app.get("/health/live",async()=>({status:"ok"}));
   app.get("/health/ready",async (_request,reply) => {
     try { await pool.query("SELECT 1"); return {status:"ready"}; }
