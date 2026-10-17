@@ -43,6 +43,8 @@ jobs:
         run: npm run typecheck
       - name: Dashboard JavaScript syntax
         run: npm run test:web:syntax
+      - name: Dashboard structure and security contract
+        run: npm run test:web:contract
       - name: Domain, provider, media and worker tests
         run: npm test
       - name: PostgreSQL migration and concurrency tests
