@@ -1,62 +1,30 @@
 # Social Publisher
 
-Original self-hosted social content distribution system. **Not a Postiz fork**.
-Postiz is a read-only reference for architecture, not a code dependency.
+Original self-hosted Telegram → Facebook / Instagram publishing platform, developed in stages. Postiz is an engineering reference, **not a source-code dependency**.
 
-## Workflow
+## Current status
 
-The planned platform indexes two distinct private Telegram channels, then
-automatically publishes compatible content to the corresponding Facebook Page
-and Instagram professional account, each on its own configurable schedule.
+Domain core and PostgreSQL/security/Fastify administration foundations exist. A testable Telegram-history ingestion boundary is being added without connecting accounts or channels. **There is no working Telegram account connection, production scheduler, Meta publishing adapter, media staging or web dashboard yet.**
 
-## Current implementation: Phase 02
+## Modules
 
-- Typed domain rules (source/destination identities, local-day scheduling, safe
-  publishing state transitions, platform compatibility).
-- Versioned PostgreSQL tables and checksummed migrations.
-- Atomic PostgreSQL outbox and schedule slot reservation (including concurrency,
-  unique constraints, lease fencing and uncertainty quarantine).
-- Encrypted credential persistence helper (AES-256-GCM), scrypt password
-  hashing, opaque database-backed login sessions, CSRF and RBAC rules.
-- Fastify admin API with health/readiness, login/logout, user profile, protected
-  route listing and protected pause.
-- Real PostgreSQL integration tests via GitHub Actions.
+- `packages/core`: identity keys, timezone/slot policy, publication state rules
+- `packages/database`: schema, migrations, outbox and transactional claims
+- `packages/security`: sessions, credentials and RBAC
+- `packages/telegram`: Telegram history boundary, classification and checkpoint persistence
+- `apps/api`: limited authenticated administration API
+- `docs`: ADRs and phase results
 
-**Not implemented:** Telegram ingestion, actual Meta publishing, the
-background scheduler/worker runner, media transfer, frontend dashboard,
-deployment. Do not interpret passing backend tests as approval for live posting.
+## Tests
 
-## Repository layout
+Node 22.12+, PostgreSQL 15. Use a dedicated disposable test database only for integration tests.
 
-- `packages/core`: pure rules
-- `packages/database`: PostgreSQL migrations and transactional repositories
-- `packages/security`: authentication and encryption primitives
-- `apps/api`: independently testable administrative API
-- `docs`: decisions, phases and security review
+```bash
+npm install --ignore-scripts
+npm test
+npm run typecheck
+npm run test:db
+npm run test:api
+```
 
-## Development prerequisites
-
-Node 22.12+, npm, PostgreSQL 15+. There is no Docker requirement in the
-application source and no production deployment.
-
-1. Configure secrets through a private environment/secrets manager; use
-   `.env.example` **only as a placeholder reference**.
-2. `npm install --ignore-scripts`
-3. `npm run db:migrate` with a disposable PostgreSQL connection.
-4. `npm test` for dependency-free core and security tests.
-5. `npm run test:db` and `npm run test:api` **only with a dedicated test DB**:
-   the DB suite explicitly TRUNCATEs its tables.
-6. `npm run typecheck`.
-
-The admin bootstrap and local API commands require private environment
-credentials and are not part of the public test workflow. Do not run these
-commands against production until the deployment/security gate is approved.
-
-## Working branches
-
-- `build/phase-01-clean-foundation-20261013`: approved original foundation.
-- `build/phase-02-persistence-security-20261013`: ongoing Phase 02.
-- `main`: legacy bootstrap, **not** production or a complete app.
-- `feature/telegram-publisher-foundation`: superseded reference-only plan.
-
-Do not merge or deploy the draft branches without verifying their phase gates.
+Live sessions, channels and passwords are added only after implementation and review, never in Git.
