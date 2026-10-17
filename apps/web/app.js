@@ -14,7 +14,7 @@ function element(tag,text,className){
  return n;
 }
 async function render(){
- const [data,queue]=await Promise.all([request("/api/dashboard"),request("/api/queue")]);
+ const [data,queue,catalog,me]=await Promise.all([request("/api/dashboard"),request("/api/queue"),request("/api/setup/catalog"),request("/api/me")]);
  $("login-panel").classList.add("hidden");$("dashboard").classList.remove("hidden");
  $("logout").classList.remove("hidden");
  number("source-count",data.sources?.total);
@@ -49,7 +49,56 @@ async function render(){
      tr.append(element("td",String(value)));
    }tbody.append(tr);
  }
+ const setup=$("setup");
+ setup.classList.toggle("hidden",me.role==="VIEWER");
+ for(const select of document.querySelectorAll(".route-select")){
+   select.replaceChildren();
+   for(const route of catalog.routes){
+     const option=document.createElement("option");
+     option.value=route.id;option.textContent=route.slug;select.append(option);
+   }
+ }
+ const targets=$("destination-select");targets.replaceChildren();
+ for(const destination of catalog.destinations){
+   const option=document.createElement("option");
+   option.value=destination.id;
+   option.textContent=destination.platform+" — "+destination.display_name;
+   targets.append(option);
+ }
 }
+async function submitSetup(formId,makeRequest){
+ const form=$(formId);
+ form.addEventListener("submit",async event=>{
+   event.preventDefault();notice("");
+   const data=new FormData(form);
+   try{
+     const {path,body,method="POST"}=makeRequest(data);
+     await request(path,{method,headers:{"content-type":"application/json","x-csrf-token":csrf},
+       body:JSON.stringify(body)});
+     notice("تم حفظ الإعداد كمسودة معطلة؛ لن يبدأ النشر قبل ربط الحسابات.");
+     await render();
+   }catch{notice("تعذر حفظ الإعداد. راجع البيانات أو تأكد من الصلاحيات.");}
+ });
+}
+void submitSetup("source-form",d=>({
+ path:"/api/setup/source",
+ body:{slug:String(d.get("slug")),label:String(d.get("label")),peerId:String(d.get("peerId"))}
+}));
+void submitSetup("destination-form",d=>({
+ path:"/api/setup/destination",
+ body:{platform:String(d.get("platform")),displayName:String(d.get("displayName")),
+   accountId:String(d.get("accountId"))}
+}));
+void submitSetup("attach-form",d=>({
+ path:"/api/setup/attach",
+ body:{routeId:String(d.get("routeId")),destinationId:String(d.get("destinationId"))}
+}));
+void submitSetup("schedule-form",d=>({
+ method:"PUT",path:"/api/schedules/"+encodeURIComponent(String(d.get("routeId"))),
+ body:{timeZone:String(d.get("timeZone")),isoWeekdays:String(d.get("isoWeekdays")).split(",").map(Number),
+   slots:String(d.get("slots")).split(",").map(v=>v.trim()).filter(Boolean),
+   dailyLimit:Number(d.get("dailyLimit"))}
+}));
 async function restore(){
  try{await request("/api/me");const auth=await request("/api/auth/csrf");csrf=auth.csrfToken;await render();}
  catch{$("dashboard").classList.add("hidden");$("login-panel").classList.remove("hidden");}
