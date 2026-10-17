@@ -123,3 +123,15 @@ test("account-free end-to-end simulation: Telegram -> schedule -> per-platform d
  );
  assert.equal(confirmed.rows[0]?.state,"CONFIRMED");
 });
+
+test("stored Telegram session is encrypted and tied to source identity",async()=>{
+ const {randomBytes}=await import("node:crypto");
+ const {saveTelegramSession,readTelegramSession}=await import("../src/session.ts");
+ const key=randomBytes(32);
+ await saveTelegramSession(pool,sourceId,"test-only-session-value",key);
+ assert.equal(await readTelegramSession(pool,sourceId,key),"test-only-session-value");
+ const data=await pool.query<{text:string}>(
+   "SELECT encode(encrypted_session,'hex') AS text FROM telegram_session_credentials WHERE source_id=$1",[sourceId]);
+ assert.notEqual(data.rows[0]?.text,Buffer.from("test-only-session-value").toString("hex"));
+ await assert.rejects(readTelegramSession(pool,sourceId,randomBytes(32)));
+});
