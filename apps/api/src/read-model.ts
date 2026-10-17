@@ -53,3 +53,15 @@ export async function schedulesPreview(pool:Pool){
  );
  return schedules.rows;
 }
+
+export async function setupCatalog(pool:Pool){
+ const [routes,destinations]=await Promise.all([
+   pool.query<{id:string;slug:string;enabled:boolean}>(
+     "SELECT id,slug,enabled FROM routes ORDER BY slug"
+   ),
+   pool.query<{id:string;platform:string;display_name:string;enabled:boolean}>(
+     "SELECT id,platform,display_name,enabled FROM destinations ORDER BY display_name"
+   )
+ ]);
+ return {routes:routes.rows,destinations:destinations.rows};
+}
