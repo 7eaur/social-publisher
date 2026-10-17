@@ -1,3 +1,4 @@
+import {storeTelegramConnection,clearTelegramConnection,storeMetaCredential,clearMetaCredential} from "./secret-setup.ts";
 import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
 import {readFile} from "node:fs/promises";
 import {dashboardSnapshot,queuePreview,schedulesPreview,setupCatalog} from "./read-model.ts";
@@ -17,6 +18,8 @@ export interface ApiSettings {
   readonly origin: string;
   readonly loginThrottlePepper: string;
   readonly production: boolean;
+  /** Injection-only master key: never delivered to browser or stored in DB. */
+  readonly secretsEncryptionKey?: Buffer;
 }
 
 const validUuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -158,7 +161,7 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
   });
   app.get("/api/setup/catalog",async(request,reply)=>{
     const user=await requireUser(request,reply);if(!user)return;
-    return setupCatalog(pool);
+    return {...await setupCatalog(pool),secretStoreReady:config.secretsEncryptionKey?.length===32};
   });
   app.post("/api/setup/source",{
     schema:{body:{
@@ -315,6 +318,72 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     await revokeSession(pool,token);
     reply.clearCookie(cookieName,{path:"/"});
     return {loggedOut:true};
+  });
+
+  const telegramSecretSchema={
+    schema:{params:{type:"object",required:["id"],properties:{id:{type:"string",format:"uuid"}}},
+      body:{type:"object",additionalProperties:false,required:["apiId","apiHash","sessionString"],
+        properties:{
+          apiId:{type:"integer",minimum:1,maximum:2147483647},
+          apiHash:{type:"string",minLength:4,maxLength:512},
+          sessionString:{type:"string",minLength:8,maxLength:16000}
+        }}},
+    bodyLimit:22000
+  } as const;
+  app.put("/api/setup/telegram/:id/credentials",telegramSecretSchema,async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);
+    if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const key=config.secretsEncryptionKey;
+    if(!key || key.length!==32)return reply.code(503).send({error:"SECRET_STORE_NOT_CONFIGURED"});
+    const {id}=request.params as {id:string};
+    const data=request.body as {apiId:number;apiHash:string;sessionString:string};
+    try{
+      const saved=await storeTelegramConnection(pool,id,user.userId,data,key);
+      return saved?{saved:true,verified:false,active:false}:reply.code(404).send({error:"SOURCE_NOT_FOUND"});
+    }catch(error){
+      if(error instanceof RangeError)return reply.code(400).send({error:"INVALID_CREDENTIALS"});
+      throw error;
+    }
+  });
+  app.delete("/api/setup/telegram/:id/credentials",async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);
+    if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {id}=request.params as {id:string};
+    if(!validUuid.test(id))return reply.code(400).send({error:"INVALID_ID"});
+    const revoked=await clearTelegramConnection(pool,id,user.userId);
+    return revoked?{revoked:true,active:false}:reply.code(404).send({error:"SOURCE_NOT_FOUND"});
+  });
+  app.put("/api/setup/meta/:id/credentials",{
+    schema:{params:{type:"object",required:["id"],properties:{id:{type:"string",format:"uuid"}}},
+      body:{type:"object",required:["accessToken"],additionalProperties:false,
+        properties:{accessToken:{type:"string",minLength:5,maxLength:16000}}}},
+    bodyLimit:18000
+  },async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);
+    if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const key=config.secretsEncryptionKey;
+    if(!key || key.length!==32)return reply.code(503).send({error:"SECRET_STORE_NOT_CONFIGURED"});
+    const {id}=request.params as {id:string};
+    const {accessToken}=request.body as {accessToken:string};
+    try{
+      const saved=await storeMetaCredential(pool,id,user.userId,accessToken,key);
+      return saved?{saved:true,verified:false,active:false}:reply.code(404).send({error:"DESTINATION_NOT_FOUND"});
+    }catch(error){
+      if(error instanceof RangeError)return reply.code(400).send({error:"INVALID_CREDENTIALS"});
+      throw error;
+    }
+  });
+  app.delete("/api/setup/meta/:id/credentials",async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);
+    if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {id}=request.params as {id:string};
+    if(!validUuid.test(id))return reply.code(400).send({error:"INVALID_ID"});
+    const revoked=await clearMetaCredential(pool,id,user.userId);
+    return revoked?{revoked:true,active:false}:reply.code(404).send({error:"DESTINATION_NOT_FOUND"});
   });
   return app;
 }

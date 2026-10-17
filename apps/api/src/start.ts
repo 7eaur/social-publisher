@@ -1,5 +1,6 @@
 import { createDatabasePool } from "../../../packages/database/src/pool.ts";
 import { buildApi } from "./server.ts";
+import {parseSecretKey} from "../../../packages/security/src/secrets.ts";
 
 const origin = process.env.APP_ORIGIN;
 const pepper = process.env.LOGIN_THROTTLE_PEPPER;
@@ -8,7 +9,8 @@ const pool = createDatabasePool();
 const app = await buildApi(pool, {
   origin,
   loginThrottlePepper: pepper,
-  production: process.env.NODE_ENV === "production"
+  production: process.env.NODE_ENV === "production",
+  ...(process.env.SECRETS_ENCRYPTION_KEY ? {secretsEncryptionKey:parseSecretKey(process.env.SECRETS_ENCRYPTION_KEY)} : {})
 });
 try {
   await app.listen({ host: process.env.API_HOST ?? "127.0.0.1", port: Number(process.env.PORT ?? "3000") });
