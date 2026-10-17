@@ -125,7 +125,7 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     );
     if(!valid)return reply.code(403).send({error:"INSTALL_DENIED"});
     const normalized=email.trim().toLowerCase();
-    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)){
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)){
       return reply.code(400).send({error:"INVALID_EMAIL"});
     }
     const passwordHash=await hashPassword(password);
