@@ -208,3 +208,46 @@ test("expired publish claim marks the publication record uncertain in the same t
   assert.equal(publication.rows[0]?.state,"UNCERTAIN");
   assert.equal((await claimJobs(pool)).length,0);
 });
+
+test("offline scheduler reserves once, requires account readiness and honors daily limit", async () => {
+ const {scheduleDueRoutes}=await import("../src/schedule-engine.ts");
+ const peer="scheduler-"+randomUUID();
+ const src=await pool.query<{id:string}>(
+   "INSERT INTO content_sources(kind,external_peer_id,label) VALUES('TELEGRAM',$1,'Schedule') RETURNING id",[peer]
+ );
+ const sourceId=src.rows[0]!.id;
+ const routeResult=await pool.query<{id:string}>(
+   "INSERT INTO routes(slug,source_id,enabled) VALUES($1,$2,true) RETURNING id",
+   ["schedule-"+randomUUID().slice(0,8),sourceId]
+ );
+ const route=routeResult.rows[0]!.id;
+ const dest=await pool.query<{id:string}>(
+   "INSERT INTO destinations(platform,external_account_id,display_name) VALUES('FACEBOOK',$1,'Fake only') RETURNING id",
+   [randomUUID()]
+ );
+ const destinationId=dest.rows[0]!.id;
+ await pool.query("INSERT INTO route_destinations(route_id,destination_id) VALUES($1,$2)",[route,destinationId]);
+ await pool.query(
+   "INSERT INTO schedule_rules(route_id,time_zone,iso_weekdays,slots,daily_limit,enabled) VALUES($1,'Asia/Aden',ARRAY[1,2,3,4,5,6,7],ARRAY['09:30','11:30'],1,true)",[route]
+ );
+ await pool.query(
+   "INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,source_created_at) VALUES($1,$2,71,'TEXT',now()-interval '2 days')",
+   [route,sourceId]
+ );
+ const first=new Date("2026-10-19T06:30:00Z");
+ assert.equal((await scheduleDueRoutes(pool,first)).claimed,0,"missing account credential disables scheduler");
+ await pool.query(
+   `UPDATE destinations SET enabled=true,credentials_ciphertext=decode('0102','hex'),
+    credentials_iv=decode('010203040506070809101112','hex'),
+    credentials_tag=decode('01020304050607080910111213141516','hex'),
+    credentials_version=1 WHERE id=$1`,[destinationId]
+ );
+ const tasks=await Promise.all([scheduleDueRoutes(pool,first),scheduleDueRoutes(pool,first)]);
+ assert.equal(tasks.reduce((n,x)=>n+x.claimed,0),1,"route lock prevents duplicate reservations");
+ assert.equal(tasks.reduce((n,x)=>n+x.destinationJobs,0),1);
+ assert.equal((await scheduleDueRoutes(pool,new Date("2026-10-19T08:30:00Z"))).claimed,0);
+ const records=await pool.query<{n:number}>(
+   "SELECT count(*)::int AS n FROM publication_records WHERE destination_id=$1",[destinationId]
+ );
+ assert.equal(records.rows[0]?.n,1);
+});
