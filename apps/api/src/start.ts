@@ -10,6 +10,7 @@ const app = await buildApi(pool, {
   origin,
   loginThrottlePepper: pepper,
   production: process.env.NODE_ENV === "production",
+  ...(process.env.INSTALL_SETUP_TOKEN ? {installSetupToken:process.env.INSTALL_SETUP_TOKEN} : {}),
   ...(process.env.SECRETS_ENCRYPTION_KEY ? {secretsEncryptionKey:parseSecretKey(process.env.SECRETS_ENCRYPTION_KEY)} : {})
 });
 try {

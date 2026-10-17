@@ -4,7 +4,7 @@ import {createDraftSource,createDraftDestination,attachDraftDestination} from ".
 import {readFile} from "node:fs/promises";
 import {dashboardSnapshot,queuePreview,schedulesPreview,setupCatalog} from "./read-model.ts";
 import {validateScheduleRule,type ScheduleRule} from "../../../packages/core/src/schedule.ts";
-import {randomBytes} from "node:crypto";
+import {randomBytes,createHash,timingSafeEqual} from "node:crypto";
 import {hashOpaqueToken} from "../../../packages/security/src/sessions.ts";
 import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
@@ -19,6 +19,8 @@ export interface ApiSettings {
   readonly origin: string;
   readonly loginThrottlePepper: string;
   readonly production: boolean;
+  /** Single-use first-owner claim secret from the hosting secret manager. */
+  readonly installSetupToken?: string;
   /** Injection-only master key: never delivered to browser or stored in DB. */
   readonly secretsEncryptionKey?: Buffer;
 }
@@ -90,6 +92,61 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     }catch {
       return reply.code(503).send({status:"unavailable"});
     }
+  });
+
+  // One-time first-owner provisioning: never self-register admins.
+  const countAdmins=async():Promise<boolean>=>{
+    const r=await pool.query("SELECT 1 FROM users WHERE role='ADMIN' LIMIT 1");
+    return r.rowCount===1;
+  };
+  app.get("/api/install/status",async()=>({
+    required:!(await countAdmins()),
+    available:typeof config.installSetupToken==="string" &&
+      /^[A-Za-z0-9_-]{43}$/.test(config.installSetupToken)
+  }));
+  app.post("/api/install/admin",{
+    schema:{body:{
+      type:"object",required:["setupToken","email","password"],additionalProperties:false,
+      properties:{
+        setupToken:{type:"string",minLength:43,maxLength:43,pattern:"^[A-Za-z0-9_-]+$"},
+        email:{type:"string",minLength:3,maxLength:254},
+        password:{type:"string",minLength:12,maxLength:256}
+      }
+    }}
+  },async(request,reply)=>{
+    const secret=config.installSetupToken;
+    if(!secret || !/^[A-Za-z0-9_-]{43}$/.test(secret)){
+      return reply.code(503).send({error:"INSTALL_DISABLED"});
+    }
+    const {setupToken,email,password}=request.body as {setupToken:string;email:string;password:string};
+    const valid=timingSafeEqual(
+      createHash("sha256").update(setupToken).digest(),
+      createHash("sha256").update(secret).digest()
+    );
+    if(!valid)return reply.code(403).send({error:"INSTALL_DENIED"});
+    const normalized=email.trim().toLowerCase();
+    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)){
+      return reply.code(400).send({error:"INVALID_EMAIL"});
+    }
+    const passwordHash=await hashPassword(password);
+    const created=await withinTransaction(pool,async client=>{
+      await client.query("SELECT pg_advisory_xact_lock(926104)");
+      const existing=await client.query("SELECT 1 FROM users WHERE role='ADMIN' LIMIT 1");
+      if(existing.rowCount)return false;
+      const inserted=await client.query<{id:string}>(
+        "INSERT INTO users(email,password_hash,role,enabled) VALUES($1,$2,'ADMIN',true) RETURNING id",
+        [normalized,passwordHash]
+      );
+      const userId=inserted.rows[0]?.id;
+      if(!userId)throw new Error("First administrator creation failed");
+      await client.query(
+        "INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,'USER_BOOTSTRAP','USER',$1)",
+        [userId]
+      );
+      return true;
+    });
+    if(!created)return reply.code(409).send({error:"ALREADY_INSTALLED"});
+    return reply.code(201).send({installed:true});
   });
 
   app.post("/api/auth/login",{schema:{body:{
