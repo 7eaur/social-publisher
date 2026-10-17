@@ -70,3 +70,56 @@ test("invalid out-of-order history does not advance checkpoint",async()=>{
  );
  assert.equal(row.rows[0]?.checkpoint,"4");
 });
+
+test("account-free end-to-end simulation: Telegram -> schedule -> per-platform delivery",async()=>{
+ const {scheduleDueRoutes}=await import("../../database/src/schedule-engine.ts");
+ const {dispatchNextPublication}=await import("../../publisher/src/dispatcher.ts");
+ const destinationIds:string[]=[];
+ for(const platform of ["FACEBOOK","INSTAGRAM"] as const){
+   const d=await pool.query<{id:string}>(
+     `INSERT INTO destinations(platform,external_account_id,display_name,enabled,
+       credentials_ciphertext,credentials_iv,credentials_tag,credentials_version)
+      VALUES($1,$2,'Test account',true,decode('0102','hex'),
+        decode('010203040506070809101112','hex'),
+        decode('01020304050607080910111213141516','hex'),1) RETURNING id`,
+     [platform,randomUUID().replaceAll("-","")]
+   );
+   destinationIds.push(d.rows[0]!.id);
+   await pool.query("INSERT INTO route_destinations(route_id,destination_id) VALUES($1,$2)",
+     [routeId,d.rows[0]!.id]
+   );
+ }
+ await pool.query(
+   `INSERT INTO schedule_rules(route_id,time_zone,iso_weekdays,slots,daily_limit,enabled)
+    VALUES($1,'Asia/Aden',ARRAY[1,2,3,4,5,6,7],ARRAY['09:00'],1,true)`,[routeId]
+ );
+ await pool.query(
+   "UPDATE source_message_parts SET indexed_at=now()-interval '20 minutes' WHERE source_id=$1",[sourceId]
+ );
+ await pool.query("UPDATE routes SET enabled=true WHERE id=$1",[routeId]);
+ const slot=new Date("2026-10-19T06:00:00Z");
+ const first=await scheduleDueRoutes(pool,slot);
+ assert.equal(first.claimed,1);
+ assert.equal((await scheduleDueRoutes(pool,slot)).claimed,0);
+ const records=await pool.query<{platform:string;state:string}>(
+   `SELECT d.platform,pr.state FROM publication_records pr
+    JOIN destinations d ON d.id=pr.destination_id
+    JOIN source_items si ON si.id=pr.source_item_id WHERE si.route_id=$1
+    ORDER BY d.platform`,[routeId]
+ );
+ assert.deepEqual(records.rows.map(r=>[r.platform,r.state]),[
+   ["FACEBOOK","PENDING"],["INSTAGRAM","SKIPPED_UNSUPPORTED"]
+ ]);
+ const dispatched=await dispatchNextPublication(pool,{
+   async publish(ctx){
+     assert.equal(ctx.platform,"FACEBOOK");
+     assert.equal(ctx.kind,"TEXT");
+     return {remoteId:"9990001"};
+   }
+ },true);
+ assert.equal(dispatched,"CONFIRMED");
+ const confirmed=await pool.query<{state:string}>(
+   `SELECT state FROM publication_records WHERE destination_id=$1`,[destinationIds[0]]
+ );
+ assert.equal(confirmed.rows[0]?.state,"CONFIRMED");
+});
