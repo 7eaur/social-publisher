@@ -39,7 +39,8 @@ export async function scheduleDueRoutes(pool:Pool,now=new Date()):Promise<Enqueu
      const localDateFormat=new Intl.DateTimeFormat("en-CA",{
        timeZone:rule.timeZone,year:"numeric",month:"2-digit",day:"2-digit"
      });
-     const localDate=localDateFormat.format(now);
+     const components=Object.fromEntries(localDateFormat.formatToParts(now).map(p=>[p.type,p.value]));
+     const localDate=[components.year,components.month,components.day].join("-");
      const reserved=await client.query<{slot:string}>(
        "SELECT slot FROM schedule_claims WHERE route_id=$1 AND local_date=$2::date",
        [entry.id,localDate]
