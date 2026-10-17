@@ -74,8 +74,22 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
   );
   app.get("/health/live",async()=>({status:"ok"}));
   app.get("/health/ready",async (_request,reply) => {
-    try { await pool.query("SELECT 1"); return {status:"ready"}; }
-    catch { return reply.code(503).send({status:"unavailable"}); }
+    try {
+      // A reachable database without the current schema is NOT a ready service.
+      const schema=await pool.query<{latest:boolean}>(
+        `SELECT EXISTS (
+           SELECT 1 FROM schema_migrations
+           WHERE filename='0007_integration_vault.sql'
+         ) AS latest`
+      );
+      if(!schema.rows[0]?.latest){
+        return reply.code(503).send({status:"unavailable"});
+      }
+      await pool.query("SELECT 1 FROM integration_vault LIMIT 1");
+      return {status:"ready"};
+    }catch {
+      return reply.code(503).send({status:"unavailable"});
+    }
   });
 
   app.post("/api/auth/login",{schema:{body:{

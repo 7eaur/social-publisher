@@ -13,7 +13,7 @@ const app = await buildApi(pool, {
   ...(process.env.SECRETS_ENCRYPTION_KEY ? {secretsEncryptionKey:parseSecretKey(process.env.SECRETS_ENCRYPTION_KEY)} : {})
 });
 try {
-  await app.listen({ host: process.env.API_HOST ?? "127.0.0.1", port: Number(process.env.PORT ?? "3000") });
+  await app.listen({ host: process.env.API_HOST ?? (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1"), port: Number(process.env.PORT ?? "3000") });
 } catch {
   console.error("API could not start");
   await pool.end();

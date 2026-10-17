@@ -305,3 +305,19 @@ test("installation vault stores only encrypted settings, supports revocation and
    assert.equal(await readIntegrationSecret(pool,name,key),null);
  }finally{await api.close();}
 });
+
+test("readiness refuses a database without its required schema",async()=>{
+ const fake={
+   query:async(query:string)=>{
+     if(query.includes("schema_migrations"))return {rows:[{latest:false}]};
+     throw new Error("Unexpected query");
+   }
+ } as unknown as Parameters<typeof buildApi>[0];
+ const isolated=await buildApi(fake,{origin,loginThrottlePepper:"pepper".repeat(10),production:false});
+ await isolated.ready();
+ try{
+   const result=await isolated.inject({method:"GET",url:"/health/ready"});
+   assert.equal(result.statusCode,503);
+   assert.deepEqual(result.json(),{status:"unavailable"});
+ }finally{await isolated.close();}
+});

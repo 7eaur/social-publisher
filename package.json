@@ -17,7 +17,8 @@
     "test:telegram:db": "node --experimental-strip-types --test packages/telegram/test/sync.test.ts",
     "worker:start": "node --experimental-strip-types apps/worker/src/start.ts",
     "test:web:syntax": "node --check apps/web/app.js",
-    "test:web:contract": "node --test apps/web/test/*.test.mjs"
+    "test:web:contract": "node --test apps/web/test/*.test.mjs",
+    "release:verify": "npm run typecheck && npm run test:web:syntax && npm run test:web:contract && npm test"
   },
   "dependencies": {
     "pg": "8.13.3",
