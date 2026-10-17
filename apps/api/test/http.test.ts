@@ -160,3 +160,164 @@ test("draft sources and destinations are never activated by setup alone",async()
  assert.equal(enabled.rows[0]?.enabled,false);
  assert.equal(enabled.rows[0]?.credentials_ciphertext,null);
 });
+
+test("admin can store and revoke encrypted Telegram source settings without exposing secrets",async()=>{
+ const {randomBytes}=await import("node:crypto");
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const {readTelegramApiProfile}=await import("../src/secret-setup.ts");
+ const {readTelegramSession}=await import("../../../packages/telegram/src/session.ts");
+ const key=randomBytes(32);
+ const isolated=await buildApi(pool,{origin,loginThrottlePepper:"pepper".repeat(10),production:false,
+  secretsEncryptionKey:key});
+ await isolated.ready();
+ try{
+  const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+  const session=await createSession(pool,admin.rows[0]!.id);
+  const cookie="sp_session="+session.sessionToken;
+  const headers={origin,cookie,"x-csrf-token":session.csrfToken};
+  const source=await pool.query<{source_id:string}>("SELECT source_id FROM routes WHERE id=$1",[routeId]);
+  const id=source.rows[0]!.source_id;
+  const before=await isolated.inject({method:"PUT",url:"/api/setup/telegram/"+id+"/credentials",
+    headers:{origin,cookie},payload:{apiId:101,apiHash:"test-api-hash",sessionString:"test-session-value"}});
+  assert.equal(before.statusCode,403,"missing CSRF is rejected");
+  const saved=await isolated.inject({method:"PUT",url:"/api/setup/telegram/"+id+"/credentials",
+    headers,payload:{apiId:101,apiHash:"test-api-hash",sessionString:"test-session-value"}});
+  assert.equal(saved.statusCode,200);
+  assert.deepEqual(saved.json(),{saved:true,verified:false,active:false});
+  assert.equal((await readTelegramApiProfile(pool,id,key))?.apiHash,"test-api-hash");
+  assert.equal(await readTelegramSession(pool,id,key),"test-session-value");
+  const catalog=await isolated.inject({method:"GET",url:"/api/setup/catalog",headers:{cookie}});
+  assert.equal(catalog.statusCode,200);
+  assert.ok(catalog.json().sources.some((s:{id:string;has_session:boolean;has_api_credentials:boolean})=>
+    s.id===id && s.has_session && s.has_api_credentials));
+  assert.ok(!catalog.body.includes("test-session-value"));
+  assert.ok(!catalog.body.includes("test-api-hash"));
+  const row=await pool.query<{enabled:boolean}>("SELECT enabled FROM content_sources WHERE id=$1",[id]);
+  assert.equal(row.rows[0]?.enabled,false);
+  const revoked=await isolated.inject({method:"DELETE",url:"/api/setup/telegram/"+id+"/credentials",headers});
+  assert.equal(revoked.statusCode,200);
+  assert.equal(await readTelegramApiProfile(pool,id,key),null);
+  assert.equal(await readTelegramSession(pool,id,key),null);
+ }finally{await isolated.close();}
+});
+
+test("only administrators can store Meta tokens; token rotation disables the destination",async()=>{
+ const {randomBytes}=await import("node:crypto");
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const {readDestinationCredential}=await import("../../../packages/database/src/credentials.ts");
+ const key=randomBytes(32);
+ const isolated=await buildApi(pool,{origin,loginThrottlePepper:"pepper".repeat(10),production:false,
+  secretsEncryptionKey:key});
+ await isolated.ready();
+ try{
+  const account=await pool.query<{id:string}>(
+    "INSERT INTO destinations(platform,external_account_id,display_name,enabled) VALUES('FACEBOOK',$1,'API secure test',true) RETURNING id",
+    [randomUUID().replaceAll("-","")]
+  );
+  const id=account.rows[0]!.id;
+  const admins=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+  const adminSession=await createSession(pool,admins.rows[0]!.id);
+  const cookie="sp_session="+adminSession.sessionToken;
+  const headers={origin,cookie,"x-csrf-token":adminSession.csrfToken};
+  const value="test-meta-token-without-real-account";
+  const saved=await isolated.inject({method:"PUT",url:"/api/setup/meta/"+id+"/credentials",
+    headers,payload:{accessToken:value}});
+  assert.equal(saved.statusCode,200);
+  assert.equal(await readDestinationCredential(pool,id,key),value);
+  const secure=await pool.query<{enabled:boolean;credentials_ciphertext:Buffer}>(
+    "SELECT enabled,credentials_ciphertext FROM destinations WHERE id=$1",[id]);
+  assert.equal(secure.rows[0]?.enabled,false);
+  assert.ok(!secure.rows[0]!.credentials_ciphertext.toString().includes(value));
+  const viewer=await pool.query<{id:string}>("SELECT id FROM users WHERE role='VIEWER' LIMIT 1");
+  if(viewer.rows[0]){
+   const viewerSession=await createSession(pool,viewer.rows[0].id);
+   const denied=await isolated.inject({method:"PUT",url:"/api/setup/meta/"+id+"/credentials",
+    headers:{origin,cookie:"sp_session="+viewerSession.sessionToken,
+     "x-csrf-token":viewerSession.csrfToken},payload:{accessToken:"viewer-must-not-set-this"}});
+   assert.equal(denied.statusCode,403);
+  }
+  const catalog=await isolated.inject({method:"GET",url:"/api/setup/catalog",headers:{cookie}});
+  assert.ok(catalog.json().destinations.some((d:{id:string;has_credential:boolean})=>
+    d.id===id&&d.has_credential));
+  assert.ok(!catalog.body.includes(value));
+  const removed=await isolated.inject({method:"DELETE",url:"/api/setup/meta/"+id+"/credentials",headers});
+  assert.equal(removed.statusCode,200);
+  assert.equal(await readDestinationCredential(pool,id,key),null);
+ }finally{await isolated.close();}
+});
+
+test("without a master encryption key, secret entry fails closed",async()=>{
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+ const session=await createSession(pool,admin.rows[0]!.id);
+ const destination=await pool.query<{id:string}>(
+   "INSERT INTO destinations(platform,external_account_id,display_name) VALUES('INSTAGRAM',$1,'Missing key') RETURNING id",
+   [randomUUID().replaceAll("-","")]
+ );
+ const response=await app.inject({method:"PUT",url:"/api/setup/meta/"+destination.rows[0]!.id+"/credentials",
+   headers:{origin,cookie:"sp_session="+session.sessionToken,"x-csrf-token":session.csrfToken},
+   payload:{accessToken:"no-master-key"}});
+ assert.equal(response.statusCode,503);
+ assert.equal(response.json().error,"SECRET_STORE_NOT_CONFIGURED");
+});
+
+test("installation vault stores only encrypted settings, supports revocation and refuses non-admin writes",async()=>{
+ const {randomBytes}=await import("node:crypto");
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const {readIntegrationSecret}=await import("../src/integration-vault.ts");
+ const key=randomBytes(32);
+ const api=await buildApi(pool,{origin,loginThrottlePepper:"pepper".repeat(10),
+   production:false,secretsEncryptionKey:key});
+ await api.ready();
+ try{
+   const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+   const session=await createSession(pool,admin.rows[0]!.id);
+   const cookie="sp_session="+session.sessionToken;
+   const headers={origin,cookie,"x-csrf-token":session.csrfToken};
+   const name="META_APP_SECRET";
+   const value="non-production-test-application-secret";
+   const invalid=await api.inject({method:"PUT",url:"/api/setup/integrations/SOME_ARBITRARY_NAME",
+     headers,payload:{value}});
+   assert.equal(invalid.statusCode,400);
+   const saved=await api.inject({method:"PUT",url:"/api/setup/integrations/"+name,
+     headers,payload:{value}});
+   assert.equal(saved.statusCode,200);
+   assert.equal(await readIntegrationSecret(pool,name,key),value);
+   const stored=await pool.query<{encrypted_value:Buffer}>(
+     "SELECT encrypted_value FROM integration_vault WHERE name=$1",[name]);
+   assert.ok(!stored.rows[0]!.encrypted_value.toString().includes(value));
+   const list=await api.inject({method:"GET",url:"/api/setup/integrations",headers:{cookie}});
+   assert.equal(list.statusCode,200);
+   assert.ok(list.json().integrations.some((s:{name:string;configured:boolean})=>s.name===name&&s.configured));
+   assert.ok(!list.body.includes(value));
+   const route=await pool.query<{enabled:boolean}>("SELECT enabled FROM routes WHERE id=$1",[routeId]);
+   assert.equal(route.rows[0]?.enabled,false);
+   const viewer=await pool.query<{id:string}>("SELECT id FROM users WHERE role='VIEWER' LIMIT 1");
+   if(viewer.rows[0]){
+     const sess=await createSession(pool,viewer.rows[0].id);
+     const denied=await api.inject({method:"PUT",url:"/api/setup/integrations/"+name,
+       headers:{origin,cookie:"sp_session="+sess.sessionToken,"x-csrf-token":sess.csrfToken},
+       payload:{value:"do-not-accept"}});
+     assert.equal(denied.statusCode,403);
+   }
+   const revoked=await api.inject({method:"DELETE",url:"/api/setup/integrations/"+name,headers});
+   assert.equal(revoked.statusCode,200);
+   assert.equal(await readIntegrationSecret(pool,name,key),null);
+ }finally{await api.close();}
+});
+
+test("readiness refuses a database without its required schema",async()=>{
+ const fake={
+   query:async(query:string)=>{
+     if(query.includes("schema_migrations"))return {rows:[{latest:false}]};
+     throw new Error("Unexpected query");
+   }
+ } as unknown as Parameters<typeof buildApi>[0];
+ const isolated=await buildApi(fake,{origin,loginThrottlePepper:"pepper".repeat(10),production:false});
+ await isolated.ready();
+ try{
+   const result=await isolated.inject({method:"GET",url:"/health/ready"});
+   assert.equal(result.statusCode,503);
+   assert.deepEqual(result.json(),{status:"unavailable"});
+ }finally{await isolated.close();}
+});

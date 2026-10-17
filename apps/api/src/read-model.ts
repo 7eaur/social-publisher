@@ -55,13 +55,25 @@ export async function schedulesPreview(pool:Pool){
 }
 
 export async function setupCatalog(pool:Pool){
- const [routes,destinations]=await Promise.all([
+ const [routes,destinations,sources]=await Promise.all([
    pool.query<{id:string;slug:string;enabled:boolean}>(
-     "SELECT id,slug,enabled FROM routes ORDER BY slug"
+     `SELECT r.id,r.slug,r.enabled,r.source_id,s.label AS source_label,
+       s.enabled AS source_enabled,s.last_indexed_message_id::text
+       FROM routes r JOIN content_sources s ON s.id=r.source_id ORDER BY r.slug`
    ),
    pool.query<{id:string;platform:string;display_name:string;enabled:boolean}>(
-     "SELECT id,platform,display_name,enabled FROM destinations ORDER BY display_name"
+     `SELECT id,platform,display_name,external_account_id,enabled,
+       (credentials_ciphertext IS NOT NULL) AS has_credential
+       FROM destinations ORDER BY display_name`
+   ),
+   pool.query<{id:string;label:string;external_peer_id:string;enabled:boolean;has_session:boolean;has_api_credentials:boolean}>(
+     `SELECT s.id,s.label,s.external_peer_id,s.enabled,
+       (ts.source_id IS NOT NULL) AS has_session,
+       (tc.source_id IS NOT NULL) AS has_api_credentials
+       FROM content_sources s LEFT JOIN telegram_session_credentials ts ON ts.source_id=s.id
+       LEFT JOIN telegram_api_credentials tc ON tc.source_id=s.id
+       ORDER BY s.label`
    )
  ]);
- return {routes:routes.rows,destinations:destinations.rows};
+ return {routes:routes.rows,destinations:destinations.rows,sources:sources.rows};
 }

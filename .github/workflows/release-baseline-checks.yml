@@ -1,0 +1,47 @@
+name: Release Baseline Quality Gate
+on:
+  push:
+    branches:
+      - main
+      - build/secure-onboarding-dashboard-20261017
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: sp_test
+          POSTGRES_PASSWORD: sp_test
+          POSTGRES_DB: social_publisher_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sp_test -d social_publisher_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      LIVE_PUBLISHING_ENABLED: "false"
+      DATABASE_URL: postgresql://sp_test:sp_test@localhost:5432/social_publisher_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies without lifecycle scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Static and UI contract checks
+        run: npm run release:verify
+      - name: PostgreSQL constraint and migration checks
+        run: npm run test:db
+      - name: Admin API and secret boundaries
+        run: npm run test:api
+      - name: Telegram ingestion simulator
+        run: npm run test:telegram:db
