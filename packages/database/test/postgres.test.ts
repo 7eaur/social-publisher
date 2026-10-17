@@ -251,3 +251,63 @@ test("offline scheduler reserves once, requires account readiness and honors dai
  );
  assert.equal(records.rows[0]?.n,1);
 });
+
+test("publisher adapter is gated and fake delivery uses a fenced transaction",async()=>{
+ const {dispatchNextPublication}=await import("../../publisher/src/dispatcher.ts");
+ const {randomUUID}=await import("node:crypto");
+ const s=await pool.query<{id:string}>(
+   "INSERT INTO content_sources(kind,external_peer_id,label) VALUES('TELEGRAM',$1,'Publisher Test') RETURNING id",
+   ["publish-"+randomUUID()]
+ );
+ const sourceId=s.rows[0]!.id;
+ const r=await pool.query<{id:string}>(
+   "INSERT INTO routes(slug,source_id,enabled) VALUES($1,$2,true) RETURNING id",
+   ["publish-"+randomUUID().slice(0,8),sourceId]
+ );
+ const routeId=r.rows[0]!.id;
+ const d=await pool.query<{id:string}>(
+   `INSERT INTO destinations(platform,external_account_id,display_name,enabled,
+      credentials_ciphertext,credentials_iv,credentials_tag,credentials_version)
+    VALUES('FACEBOOK',$1,'Test destination',true,decode('0102','hex'),
+      decode('010203040506070809101112','hex'),
+      decode('01020304050607080910111213141516','hex'),1) RETURNING id`,
+   [randomUUID()]
+ );
+ const destId=d.rows[0]!.id;
+ await pool.query("INSERT INTO route_destinations(route_id,destination_id) VALUES($1,$2)",[routeId,destId]);
+ const i=await pool.query<{id:string}>(
+   `INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at)
+    VALUES($1,$2,1,'TEXT','Test publication',now()-interval '1 hour') RETURNING id`,
+   [routeId,sourceId]
+ );
+ const publicationId=await withinTransaction(pool,client=>createDeliveryIntent(client,i.rows[0]!.id,destId));
+ assert.ok(publicationId);
+ let calls=0;
+ const stub={
+   async publish(){calls++;return {remoteId:"700"+calls};}
+ };
+ assert.equal(await dispatchNextPublication(pool,stub,false),"DISABLED");
+ assert.equal(calls,0);
+ for(let n=0;n<5;n++){
+   if(await dispatchNextPublication(pool,stub,true)==="IDLE")break;
+ }
+ const record=await pool.query<{state:string;remote_id:string}>(
+   "SELECT state,remote_id FROM publication_records WHERE id=$1",[publicationId]
+ );
+ assert.equal(record.rows[0]?.state,"CONFIRMED");
+ assert.ok(record.rows[0]?.remote_id);
+ const second=await pool.query<{id:string}>(
+   `INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at)
+    VALUES($1,$2,2,'TEXT','Another test',now()) RETURNING id`,[routeId,sourceId]
+ );
+ const id=await withinTransaction(pool,client=>createDeliveryIntent(client,second.rows[0]!.id,destId));
+ assert.ok(id);
+ const failed=await dispatchNextPublication(pool,{async publish(){throw new Error("remote timeout");}},true);
+ assert.equal(failed,"UNCERTAIN");
+ const unknown=await pool.query<{state:string}>(
+   "SELECT state FROM publication_records WHERE id=$1",[id]
+ );
+ assert.equal(unknown.rows[0]?.state,"UNCERTAIN");
+ const noRetry=await dispatchNextPublication(pool,stub,true);
+ assert.equal(noRetry,"IDLE");
+});
