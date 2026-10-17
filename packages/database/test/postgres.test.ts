@@ -91,7 +91,7 @@ after(async () => { await pool.end(); });
 
 test("migration checksum and schema are enforced", async () => {
   const count = await pool.query("SELECT count(*)::int AS n FROM schema_migrations");
-  assert.equal(count.rows[0]?.n, 2);
+  assert.equal(count.rows[0]?.n, 5);
 });
 
 test("two workers cannot create duplicate publication intent for same destination", async () => {
@@ -207,4 +207,107 @@ test("expired publish claim marks the publication record uncertain in the same t
     "SELECT state FROM publication_records WHERE id=$1",[publicationId]);
   assert.equal(publication.rows[0]?.state,"UNCERTAIN");
   assert.equal((await claimJobs(pool)).length,0);
+});
+
+test("offline scheduler reserves once, requires account readiness and honors daily limit", async () => {
+ const {scheduleDueRoutes}=await import("../src/schedule-engine.ts");
+ const peer="scheduler-"+randomUUID();
+ const src=await pool.query<{id:string}>(
+   "INSERT INTO content_sources(kind,external_peer_id,label) VALUES('TELEGRAM',$1,'Schedule') RETURNING id",[peer]
+ );
+ const sourceId=src.rows[0]!.id;
+ const routeResult=await pool.query<{id:string}>(
+   "INSERT INTO routes(slug,source_id,enabled) VALUES($1,$2,true) RETURNING id",
+   ["schedule-"+randomUUID().slice(0,8),sourceId]
+ );
+ const route=routeResult.rows[0]!.id;
+ const dest=await pool.query<{id:string}>(
+   "INSERT INTO destinations(platform,external_account_id,display_name) VALUES('FACEBOOK',$1,'Fake only') RETURNING id",
+   [randomUUID()]
+ );
+ const destinationId=dest.rows[0]!.id;
+ await pool.query("INSERT INTO route_destinations(route_id,destination_id) VALUES($1,$2)",[route,destinationId]);
+ await pool.query(
+   "INSERT INTO schedule_rules(route_id,time_zone,iso_weekdays,slots,daily_limit,enabled) VALUES($1,'Asia/Aden',ARRAY[1,2,3,4,5,6,7],ARRAY['09:30','11:30'],1,true)",[route]
+ );
+ await pool.query(
+   "INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at) VALUES($1,$2,71,'TEXT','Scheduled sample',now()-interval '2 days')",
+   [route,sourceId]
+ );
+ const first=new Date("2026-10-19T06:30:00Z");
+ assert.equal((await scheduleDueRoutes(pool,first)).claimed,0,"missing account credential disables scheduler");
+ await pool.query(
+   `UPDATE destinations SET enabled=true,credentials_ciphertext=decode('0102','hex'),
+    credentials_iv=decode('010203040506070809101112','hex'),
+    credentials_tag=decode('01020304050607080910111213141516','hex'),
+    credentials_version=1 WHERE id=$1`,[destinationId]
+ );
+ const tasks=await Promise.all([scheduleDueRoutes(pool,first),scheduleDueRoutes(pool,first)]);
+ assert.equal(tasks.reduce((n,x)=>n+x.claimed,0),1,"route lock prevents duplicate reservations");
+ assert.equal(tasks.reduce((n,x)=>n+x.destinationJobs,0),1);
+ assert.equal((await scheduleDueRoutes(pool,new Date("2026-10-19T08:30:00Z"))).claimed,0);
+ const records=await pool.query<{n:number}>(
+   "SELECT count(*)::int AS n FROM publication_records WHERE destination_id=$1",[destinationId]
+ );
+ assert.equal(records.rows[0]?.n,1);
+});
+
+test("publisher adapter is gated and fake delivery uses a fenced transaction",async()=>{
+ const {dispatchNextPublication}=await import("../../publisher/src/dispatcher.ts");
+ const {randomUUID}=await import("node:crypto");
+ const s=await pool.query<{id:string}>(
+   "INSERT INTO content_sources(kind,external_peer_id,label) VALUES('TELEGRAM',$1,'Publisher Test') RETURNING id",
+   ["publish-"+randomUUID()]
+ );
+ const sourceId=s.rows[0]!.id;
+ const r=await pool.query<{id:string}>(
+   "INSERT INTO routes(slug,source_id,enabled) VALUES($1,$2,true) RETURNING id",
+   ["publish-"+randomUUID().slice(0,8),sourceId]
+ );
+ const routeId=r.rows[0]!.id;
+ const d=await pool.query<{id:string}>(
+   `INSERT INTO destinations(platform,external_account_id,display_name,enabled,
+      credentials_ciphertext,credentials_iv,credentials_tag,credentials_version)
+    VALUES('FACEBOOK',$1,'Test destination',true,decode('0102','hex'),
+      decode('010203040506070809101112','hex'),
+      decode('01020304050607080910111213141516','hex'),1) RETURNING id`,
+   [randomUUID()]
+ );
+ const destId=d.rows[0]!.id;
+ await pool.query("INSERT INTO route_destinations(route_id,destination_id) VALUES($1,$2)",[routeId,destId]);
+ const i=await pool.query<{id:string}>(
+   `INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at)
+    VALUES($1,$2,1,'TEXT','Test publication',now()-interval '1 hour') RETURNING id`,
+   [routeId,sourceId]
+ );
+ const publicationId=await withinTransaction(pool,client=>createDeliveryIntent(client,i.rows[0]!.id,destId));
+ assert.ok(publicationId);
+ let calls=0;
+ const stub={
+   async publish(){calls++;return {remoteId:"700"+calls};}
+ };
+ assert.equal(await dispatchNextPublication(pool,stub,false),"DISABLED");
+ assert.equal(calls,0);
+ for(let n=0;n<5;n++){
+   if(await dispatchNextPublication(pool,stub,true)==="IDLE")break;
+ }
+ const record=await pool.query<{state:string;remote_id:string}>(
+   "SELECT state,remote_id FROM publication_records WHERE id=$1",[publicationId]
+ );
+ assert.equal(record.rows[0]?.state,"CONFIRMED");
+ assert.ok(record.rows[0]?.remote_id);
+ const second=await pool.query<{id:string}>(
+   `INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at)
+    VALUES($1,$2,2,'TEXT','Another test',now()) RETURNING id`,[routeId,sourceId]
+ );
+ const id=await withinTransaction(pool,client=>createDeliveryIntent(client,second.rows[0]!.id,destId));
+ assert.ok(id);
+ const failed=await dispatchNextPublication(pool,{async publish(){throw new Error("remote timeout");}},true);
+ assert.equal(failed,"UNCERTAIN");
+ const unknown=await pool.query<{state:string}>(
+   "SELECT state FROM publication_records WHERE id=$1",[id]
+ );
+ assert.equal(unknown.rows[0]?.state,"UNCERTAIN");
+ const noRetry=await dispatchNextPublication(pool,stub,true);
+ assert.equal(noRetry,"IDLE");
 });

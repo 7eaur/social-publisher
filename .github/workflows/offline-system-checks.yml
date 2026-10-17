@@ -1,0 +1,40 @@
+name: Offline System Verification
+on:
+  push:
+    branches: [build/phase-03-07-system-without-accounts-20261017]
+  pull_request:
+    branches: [build/phase-02-persistence-security-20261013]
+permissions:
+  contents: read
+jobs:
+  offline-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: social_publisher_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U testuser -d social_publisher_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/social_publisher_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run test:web:syntax
+      - run: npm test
+      - run: npm run test:db
+      - run: npm run test:api
+      - run: npm run test:telegram:db

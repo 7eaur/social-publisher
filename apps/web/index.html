@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Social Publisher — لوحة الإدارة</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <script src="/ui/app.js" type="module"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-mark">SP</span><span>Social Publisher<small>منصة إدارة النشر</small></span></div>
+      <nav aria-label="الأقسام">
+        <a href="#overview" class="active">نظرة عامة</a>
+        <a href="#routes">مسارات النشر</a>
+        <a href="#queue">قائمة المحتوى</a>
+        <a href="#setup">الإعدادات</a>
+      </nav>
+      <div class="side-foot">نسخة التطوير <span class="build">الحسابات غير متصلة</span></div>
+    </aside>
+    <main class="main">
+      <header class="top">
+        <div><p class="eyebrow">لوحة التحكم</p><h1>إدارة النشر الآلي</h1></div>
+        <button id="logout" class="outline hidden" type="button">تسجيل الخروج</button>
+      </header>
+      <div id="notice" role="status" aria-live="polite"></div>
+      <section id="login-panel" class="login-card">
+        <p class="eyebrow">تسجيل الدخول</p>
+        <h2>الدخول إلى حساب الإدارة</h2>
+        <p class="muted">لا يمكن عرض القنوات أو المنشورات دون جلسة موثّقة.</p>
+        <form id="login-form" autocomplete="on">
+          <label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label>
+          <label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label>
+          <button type="submit">دخول آمن</button>
+        </form>
+      </section>
+      <div id="dashboard" class="hidden">
+        <section id="overview" aria-label="نظرة عامة">
+          <div class="heading"><div><h2>نظرة عامة</h2><p class="muted">بيانات مباشرة من قاعدة البيانات</p></div><span id="setup-status" class="status">بانتظار الإعداد</span></div>
+          <div class="cards">
+            <article class="metric"><span>مصادر المحتوى</span><strong id="source-count">0</strong><small>تيليجرام</small></article>
+            <article class="metric"><span>الحسابات الجاهزة</span><strong id="destination-count">0</strong><small>فيسبوك وإنستغرام</small></article>
+            <article class="metric"><span>مهام معلقة</span><strong id="queue-count">0</strong><small>قائمة الانتظار</small></article>
+            <article class="metric"><span>المنشورات المؤكدة</span><strong id="published-count">0</strong><small>نتائج النشر</small></article>
+          </div>
+        </section>
+        <section id="routes" class="panel-section">
+          <div class="heading"><div><h2>مسارات النشر</h2><p class="muted">كل قناة لها حساباتها وجدولها المستقل</p></div></div>
+          <div id="route-list" class="route-list"><p class="empty">لم تُضف القنوات بعد. سنضيفها عند ربط جلسة تيليجرام.</p></div>
+        </section>
+        <section id="queue" class="panel-section">
+          <div class="heading"><div><h2>قائمة المحتوى</h2><p class="muted">المنشورات المفهرسة حسب تاريخها</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>المسار</th><th>المحتوى</th><th>النوع</th><th>الحالة</th></tr></thead><tbody id="queue-rows"></tbody></table></div>
+        </section>
+        <section id="setup" class="panel-section">
+          <div class="heading"><div><h2>إعداد المسارات والحسابات</h2><p class="muted">ننشئ المسودات الآن، ثم نربط جلسة تيليجرام وصلاحيات Meta لاحقًا. لا نشر تلقائي قبل تفعيل الحسابات.</p></div></div>
+          <div class="setup-grid">
+            <form class="setup-form" id="source-form">
+              <h3>مصدر تيليجرام</h3>
+              <label>اسم المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required></label>
+              <label>عنوان القناة<input name="label" placeholder="قناة المحتوى" required></label>
+              <label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required></label>
+              <button type="submit">حفظ المصدر كمسودة</button>
+            </form>
+            <form class="setup-form" id="destination-form">
+              <h3>حساب مستهدف</h3>
+              <label>المنصة<select name="platform"><option value="FACEBOOK">Facebook</option><option value="INSTAGRAM">Instagram</option></select></label>
+              <label>اسم العرض<input name="displayName" placeholder="صفحتنا الرسمية" required></label>
+              <label>معرّف الحساب<input name="accountId" placeholder="123456789" pattern="[0-9]+" required></label>
+              <button type="submit">حفظ الحساب كمسودة</button>
+            </form>
+            <form class="setup-form" id="attach-form">
+              <h3>ربط المسار بالحساب</h3>
+              <label>المسار<select name="routeId" class="route-select" required></select></label>
+              <label>الحساب<select name="destinationId" id="destination-select" required></select></label>
+              <button type="submit">ربط المسودتين</button>
+            </form>
+            <form class="setup-form" id="schedule-form">
+              <h3>إعداد جدول النشر</h3>
+              <label>المسار<select name="routeId" class="route-select" required></select></label>
+              <label>المنطقة الزمنية<input name="timeZone" value="Asia/Aden" required></label>
+              <label>أيام الأسبوع (1 الإثنين – 7 الأحد)<input name="isoWeekdays" value="1,2,3,4,5,6,7" required></label>
+              <label>الأوقات بصيغة 24 ساعة<input name="slots" value="09:00" required></label>
+              <label>الحد اليومي<input name="dailyLimit" type="number" min="1" max="50" value="1" required></label>
+              <button type="submit">حفظ الجدول</button>
+            </form>
+          </div>
+        </section>
+      </div>
+      <footer>يُفعّل النشر الحقيقي فقط بعد إعداد الجلسات والصلاحيات واجتياز الاختبارات.</footer>
+    </main>
+  </div>
+</body>
+</html>

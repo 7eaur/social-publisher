@@ -7,18 +7,22 @@
     "node": ">=22.12.0 <23"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test packages/core/test/*.test.ts packages/security/test/*.test.ts",
+    "test": "node --experimental-strip-types --test packages/core/test/*.test.ts packages/security/test/*.test.ts packages/telegram/test/messages.test.ts packages/telegram/test/gramjs-source.test.ts packages/meta/test/*.test.ts packages/media/test/*.test.ts apps/worker/test/*.test.ts",
     "test:db": "node --experimental-strip-types --test packages/database/test/*.test.ts",
     "db:migrate": "node --experimental-strip-types packages/database/src/migrate.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:api": "node --experimental-strip-types --test apps/api/test/*.test.ts",
     "api:start": "node --experimental-strip-types apps/api/src/start.ts",
-    "admin:bootstrap": "node --experimental-strip-types apps/api/src/bootstrap-admin.ts"
+    "admin:bootstrap": "node --experimental-strip-types apps/api/src/bootstrap-admin.ts",
+    "test:telegram:db": "node --experimental-strip-types --test packages/telegram/test/sync.test.ts",
+    "worker:start": "node --experimental-strip-types apps/worker/src/start.ts",
+    "test:web:syntax": "node --check apps/web/app.js"
   },
   "dependencies": {
     "pg": "8.13.3",
     "fastify": "5.6.0",
-    "@fastify/cookie": "11.1.2"
+    "@fastify/cookie": "11.1.2",
+    "teleproto": "1.230.1"
   },
   "devDependencies": {
     "@types/node": "22.15.0",

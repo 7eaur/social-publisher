@@ -93,3 +93,70 @@ test("viewer role cannot change routes even with valid session and CSRF",async()
   });
   assert.equal(result.statusCode,403);
 });
+
+test("dashboard UI assets are served, but unauthenticated data stays private",async()=>{
+ const html=await app.inject({method:"GET",url:"/"});
+ assert.equal(html.statusCode,200);
+ assert.match(html.body,/Social Publisher/);
+ const script=await app.inject({method:"GET",url:"/ui/app.js"});
+ assert.equal(script.statusCode,200);
+ assert.match(script.headers["content-type"]??"",/javascript/);
+ const data=await app.inject({method:"GET",url:"/api/dashboard"});
+ assert.equal(data.statusCode,401);
+});
+
+test("schedules require fresh CSRF and cannot activate unconnected routes",async()=>{
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const row=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+ const session=await createSession(pool,row.rows[0]!.id);
+ const cookie="sp_session="+session.sessionToken;
+ const refreshed=await app.inject({method:"GET",url:"/api/auth/csrf",headers:{cookie}});
+ assert.equal(refreshed.statusCode,200);
+ const csrf=refreshed.json().csrfToken as string;
+ const body={timeZone:"Asia/Aden",isoWeekdays:[1,2,3],slots:["10:00"],dailyLimit:1};
+ const stale=await app.inject({method:"PUT",url:"/api/schedules/"+routeId,
+   headers:{origin,cookie,"x-csrf-token":session.csrfToken},payload:body});
+ assert.equal(stale.statusCode,403);
+ const saved=await app.inject({method:"PUT",url:"/api/schedules/"+routeId,
+   headers:{origin,cookie,"x-csrf-token":csrf},payload:body});
+ assert.equal(saved.statusCode,200);
+ const rules=await app.inject({method:"GET",url:"/api/schedules",headers:{cookie}});
+ assert.equal(rules.statusCode,200);
+ assert.ok(rules.json().schedules.some((x:{route_id:string})=>x.route_id===routeId));
+ const resumed=await app.inject({method:"POST",url:"/api/routes/"+routeId+"/resume",
+   headers:{origin,cookie,"x-csrf-token":csrf}});
+ assert.equal(resumed.statusCode,409);
+});
+
+test("draft sources and destinations are never activated by setup alone",async()=>{
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+ const session=await createSession(pool,admin.rows[0]!.id);
+ const cookie="sp_session="+session.sessionToken;
+ const headers={origin,cookie,"x-csrf-token":session.csrfToken};
+ const slug="setup-"+randomUUID().slice(0,8);
+ const peerId="-100123456789012";
+ const first=await app.inject({method:"POST",url:"/api/setup/source",headers,
+   payload:{slug,label:"Channel not connected",peerId}});
+ assert.equal(first.statusCode,201);
+ const route=first.json().routeId as string;
+ const same=await app.inject({method:"POST",url:"/api/setup/source",headers,
+   payload:{slug,label:"Duplicate",peerId}});
+ assert.equal(same.statusCode,409);
+ const destination=await app.inject({method:"POST",url:"/api/setup/destination",headers,
+   payload:{platform:"FACEBOOK",accountId:"1234567890",displayName:"Unconnected Page"}});
+ assert.equal(destination.statusCode,201);
+ const target=destination.json().destinationId as string;
+ const attach=await app.inject({method:"POST",url:"/api/setup/attach",headers,
+   payload:{routeId:route,destinationId:target}});
+ assert.equal(attach.statusCode,200);
+ const snapshot=await app.inject({method:"GET",url:"/api/dashboard",headers:{cookie}});
+ assert.equal(snapshot.statusCode,200);
+ assert.ok(snapshot.json().routes.some((x:{id:string})=>x.id===route));
+ const state=await pool.query<{enabled:boolean}>("SELECT enabled FROM routes WHERE id=$1",[route]);
+ assert.equal(state.rows[0]?.enabled,false);
+ const enabled=await pool.query<{enabled:boolean;credentials_ciphertext:Buffer|null}>(
+   "SELECT enabled,credentials_ciphertext FROM destinations WHERE id=$1",[target]);
+ assert.equal(enabled.rows[0]?.enabled,false);
+ assert.equal(enabled.rows[0]?.credentials_ciphertext,null);
+});
