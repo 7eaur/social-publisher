@@ -1,6 +1,6 @@
 import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
 import {readFile} from "node:fs/promises";
-import {dashboardSnapshot,queuePreview,schedulesPreview} from "./read-model.ts";
+import {dashboardSnapshot,queuePreview,schedulesPreview,setupCatalog} from "./read-model.ts";
 import {validateScheduleRule,type ScheduleRule} from "../../../packages/core/src/schedule.ts";
 import {randomBytes} from "node:crypto";
 import {hashOpaqueToken} from "../../../packages/security/src/sessions.ts";
@@ -155,6 +155,10 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     );
     if(updated.rowCount!==1)return reply.code(401).send({error:"UNAUTHORIZED"});
     return {csrfToken:csrf};
+  });
+  app.get("/api/setup/catalog",async(request,reply)=>{
+    const user=await requireUser(request,reply);if(!user)return;
+    return setupCatalog(pool);
   });
   app.post("/api/setup/source",{
     schema:{body:{
