@@ -33,16 +33,16 @@ A unified original Arabic dashboard inspired by contemporary publishing SaaS sof
 
 ## Validation
 
-Successful all-green GitHub Actions run: https://github.com/7eaur/social-publisher/actions/runs/39063417964
+Successful all-green GitHub Actions run: https://github.com/7eaur/social-publisher/actions/runs/39063861178
 
 | Suite | Passed | Failed |
 |---|---:|---:|
-| HTML/JS UI wiring and secret form contract | 3 | 0 |
+| HTML/JS UI wiring and secret form contract | 4 | 0 |
 | Domain, media, Meta mock and worker unit tests | 34 | 0 |
 | PostgreSQL migrations and integration | 12 | 0 |
-| Secured administrative HTTP API | 10 | 0 |
+| Secured administrative HTTP API | 11 | 0 |
 | Telegram indexing integration | 4 | 0 |
-| **Total** | **63** | **0** |
+| **Total** | **65** | **0** |
 
 Strict TypeScript type checking and JavaScript syntax checks also passed.
 
