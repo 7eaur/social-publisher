@@ -71,7 +71,7 @@ test("route ownership blocks cross-route source ingestion",async()=>{
 test("incomplete albums are rejected without checkpoint progression",async()=>{
  const old=await pool.query<{last_indexed_message_id:string}>(
   "SELECT last_indexed_message_id FROM content_sources WHERE id=$1",[sourceId]);
- const invalid:TelegramHistoryPort={async getPage(){return {units:[],nextCheckpoint:10,completeAlbumBoundary:false}}};
+ const invalid:TelegramHistoryPort={async getPage(){return {units:[],nextCheckpoint:10,completeAlbumBoundary:false as unknown as true}}};
  await assert.rejects(syncSourcePage(pool,sourceId,routeId,invalid));
  const updated=await pool.query<{last_indexed_message_id:string}>(
   "SELECT last_indexed_message_id FROM content_sources WHERE id=$1",[sourceId]);
