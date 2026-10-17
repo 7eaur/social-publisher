@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Social Publisher — لوحة الإدارة</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <script src="/ui/app.js" type="module"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-mark">SP</span><span>Social Publisher<small>منصة إدارة النشر</small></span></div>
+      <nav aria-label="الأقسام">
+        <a href="#overview" class="active">نظرة عامة</a>
+        <a href="#routes">مسارات النشر</a>
+        <a href="#queue">قائمة المحتوى</a>
+      </nav>
+      <div class="side-foot">نسخة التطوير <span class="build">الحسابات غير متصلة</span></div>
+    </aside>
+    <main class="main">
+      <header class="top">
+        <div><p class="eyebrow">لوحة التحكم</p><h1>إدارة النشر الآلي</h1></div>
+        <button id="logout" class="outline hidden" type="button">تسجيل الخروج</button>
+      </header>
+      <div id="notice" role="status" aria-live="polite"></div>
+      <section id="login-panel" class="login-card">
+        <p class="eyebrow">تسجيل الدخول</p>
+        <h2>الدخول إلى حساب الإدارة</h2>
+        <p class="muted">لا يمكن عرض القنوات أو المنشورات دون جلسة موثّقة.</p>
+        <form id="login-form" autocomplete="on">
+          <label>البريد الإلكتروني<input name="email" type="email" autocomplete="username" required></label>
+          <label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label>
+          <button type="submit">دخول آمن</button>
+        </form>
+      </section>
+      <div id="dashboard" class="hidden">
+        <section id="overview" aria-label="نظرة عامة">
+          <div class="heading"><div><h2>نظرة عامة</h2><p class="muted">بيانات مباشرة من قاعدة البيانات</p></div><span id="setup-status" class="status">بانتظار الإعداد</span></div>
+          <div class="cards">
+            <article class="metric"><span>مصادر المحتوى</span><strong id="source-count">0</strong><small>تيليجرام</small></article>
+            <article class="metric"><span>الحسابات الجاهزة</span><strong id="destination-count">0</strong><small>فيسبوك وإنستغرام</small></article>
+            <article class="metric"><span>مهام معلقة</span><strong id="queue-count">0</strong><small>قائمة الانتظار</small></article>
+            <article class="metric"><span>المنشورات المؤكدة</span><strong id="published-count">0</strong><small>نتائج النشر</small></article>
+          </div>
+        </section>
+        <section id="routes" class="panel-section">
+          <div class="heading"><div><h2>مسارات النشر</h2><p class="muted">كل قناة لها حساباتها وجدولها المستقل</p></div></div>
+          <div id="route-list" class="route-list"><p class="empty">لم تُضف القنوات بعد. سنضيفها عند ربط جلسة تيليجرام.</p></div>
+        </section>
+        <section id="queue" class="panel-section">
+          <div class="heading"><div><h2>قائمة المحتوى</h2><p class="muted">المنشورات المفهرسة حسب تاريخها</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>المسار</th><th>المحتوى</th><th>النوع</th><th>الحالة</th></tr></thead><tbody id="queue-rows"></tbody></table></div>
+        </section>
+      </div>
+      <footer>يُفعّل النشر الحقيقي فقط بعد إعداد الجلسات والصلاحيات واجتياز الاختبارات.</footer>
+    </main>
+  </div>
+</body>
+</html>
