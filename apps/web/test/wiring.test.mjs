@@ -18,7 +18,7 @@ test("navigation targets and all requested onboarding forms exist",()=>{
  const tabs=new Set([...html.matchAll(/data-nav="([^"]+)"/g)].map(x=>x[1]));
  assert.deepEqual([...sections].sort(),[...tabs].sort());
  for(const id of ["source-form","destination-form","attach-form","schedule-form",
-   "telegram-secret-form","meta-secret-form","login-form"]){
+   "telegram-secret-form","meta-secret-form","integration-secret-form","login-form"]){
   assert.match(html,new RegExp('id="'+id+'"'));
  }
 });
@@ -29,4 +29,11 @@ test("secret entry is password/textarea and avoids local browser credential pers
  assert.match(html,/<textarea name="accessToken"/);
  assert.doesNotMatch(js,/localStorage|sessionStorage|innerHTML/);
  assert.match(css,/\.setup-grid/);
+});
+
+test("Meta app and storage settings are masked, and browser receives no raw secret on GET",()=>{
+ assert.match(html,/id="integration-secret-form"/);
+ assert.match(html,/name="value" type="password"/);
+ assert.match(js,/request\("\/api\/setup\/integrations"\)/);
+ assert.doesNotMatch(js,/localStorage|sessionStorage|innerHTML/);
 });
