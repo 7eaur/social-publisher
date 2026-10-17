@@ -17,9 +17,11 @@ A unified original Arabic dashboard inspired by contemporary publishing SaaS sof
 - Accounts: Telegram and Meta onboarding/readiness states without exposing tokens.
 - Setup/security: guided source, destination, route binding, weekly publishing rules.
 - Encrypted credential forms for Telegram API ID/hash/authorized session and Meta access tokens, plus administrative credential revocation.
+- Encrypted installation vault for Meta App credentials and S3-compatible temporary-storage configuration (migration 0007, masked status, set/revoke endpoints, admin-only, route disable on updates).
 
 ### Encrypted server-side onboarding
 - `0006_telegram_auth_profile.sql`: encrypted Telegram API hash profile with strict IV/tag constraints.
+- `0007_integration_vault.sql`: application/storage credentials encrypted under a separate context for each whitelisted setting.
 - `apps/api/src/secret-setup.ts`: transactional encryption and rotation/revocation; changing credentials disables associated routes.
 - New authenticated endpoints:
   - `PUT/DELETE /api/setup/telegram/:id/credentials`
