@@ -32,6 +32,7 @@ export async function setIntegrationSecret(
       [name,Buffer.from(secure.ciphertext,"base64"),Buffer.from(secure.iv,"base64"),
        Buffer.from(secure.tag,"base64")]
     );
+    await client.query("UPDATE routes SET enabled=false WHERE enabled=true");
     await client.query(
       "INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,'INTEGRATION_SECRET_ROTATED','INTEGRATION',$2)",
       [actorId,name]
@@ -43,6 +44,7 @@ export async function revokeIntegrationSecret(
 ):Promise<void>{
   await withinTransaction(pool,async client=>{
     await client.query("DELETE FROM integration_vault WHERE name=$1",[name]);
+    await client.query("UPDATE routes SET enabled=false WHERE enabled=true");
     await client.query(
       "INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,'INTEGRATION_SECRET_REVOKED','INTEGRATION',$2)",
       [actorId,name]
