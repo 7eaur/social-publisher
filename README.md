@@ -1,62 +1,54 @@
 # Social Publisher
 
-Original self-hosted social content distribution system. **Not a Postiz fork**.
-Postiz is a read-only reference for architecture, not a code dependency.
+A clean original self-hosted social publishing system. **Postiz is a reference for architecture and product UX, not an imported codebase or runtime dependency.**
 
-## Workflow
+## Intended workflow
 
-The planned platform indexes two distinct private Telegram channels, then
-automatically publishes compatible content to the corresponding Facebook Page
-and Instagram professional account, each on its own configurable schedule.
+Two separate authorized Telegram private channels provide a durable content backlog. Each can be assigned distinct Facebook Page / Instagram Professional destinations, a timezone-aware weekly schedule, and an automatic publishing policy. Originals stay on Telegram; staged media is temporary.
 
-## Current implementation: Phase 02
+## Current implementation
 
-- Typed domain rules (source/destination identities, local-day scheduling, safe
-  publishing state transitions, platform compatibility).
-- Versioned PostgreSQL tables and checksummed migrations.
-- Atomic PostgreSQL outbox and schedule slot reservation (including concurrency,
-  unique constraints, lease fencing and uncertainty quarantine).
-- Encrypted credential persistence helper (AES-256-GCM), scrypt password
-  hashing, opaque database-backed login sessions, CSRF and RBAC rules.
-- Fastify admin API with health/readiness, login/logout, user profile, protected
-  route listing and protected pause.
-- Real PostgreSQL integration tests via GitHub Actions.
+- **Domain** — canonical source identities, platform compatibility, schedule rules, publication states.
+- **PostgreSQL** — migration history, inbox/outbox, deduplication, locks, schedules, media metadata and encrypted credential columns.
+- **Security** — scrypt passwords, user sessions, CSRF, account roles, audit, AES-256-GCM secret envelopes.
+- **Source** — Telegram history/session abstractions and accountless indexing tests.
+- **Publishing** — offline queue, scheduler and partial Meta adapters with strict live-publish gate.
+- **Media** — bounded streaming and temporary retention foundation, not a full live staging pipeline.
+- **Admin UI** — responsive Arabic RTL dashboard with overview, routes, queue/search, weekly planner, accounts, schedule configuration and encrypted credentials forms.
 
-**Not implemented:** Telegram ingestion, actual Meta publishing, the
-background scheduler/worker runner, media transfer, frontend dashboard,
-deployment. Do not interpret passing backend tests as approval for live posting.
+**No live accounts or sessions have been configured, no social posts have been sent, and no Railway deployment has occurred.**
 
-## Repository layout
+## Onboarding from the dashboard
 
-- `packages/core`: pure rules
-- `packages/database`: PostgreSQL migrations and transactional repositories
-- `packages/security`: authentication and encryption primitives
-- `apps/api`: independently testable administrative API
-- `docs`: decisions, phases and security review
+Once the server is provisioned securely, an administrator can add a Telegram source draft, add Meta account drafts, link routes, configure schedules, then enter Telegram API ID / API hash / pre-authorized session or Meta access tokens using the **encrypted credential forms**. Secrets are never echoed back by GET endpoints. Replacing/revoking them disables the affected route.
 
-## Development prerequisites
+**Saving is NOT activation or verification.** Live publication remains disabled pending end-to-end platform authorization, source permissions, stage-media support, outcome reconciliation and approval.
 
-Node 22.12+, npm, PostgreSQL 15+. There is no Docker requirement in the
-application source and no production deployment.
+An installation-bound encryption master key, database URL, app origin and initial admin provisioning must be supplied through hosting secrets, never through the same dashboard.
 
-1. Configure secrets through a private environment/secrets manager; use
-   `.env.example` **only as a placeholder reference**.
-2. `npm install --ignore-scripts`
-3. `npm run db:migrate` with a disposable PostgreSQL connection.
-4. `npm test` for dependency-free core and security tests.
-5. `npm run test:db` and `npm run test:api` **only with a dedicated test DB**:
-   the DB suite explicitly TRUNCATEs its tables.
-6. `npm run typecheck`.
+## Branches
 
-The admin bootstrap and local API commands require private environment
-credentials and are not part of the public test workflow. Do not run these
-commands against production until the deployment/security gate is approved.
+- `build/phase-01-clean-foundation-20261013`: foundation.
+- `build/phase-02-persistence-security-20261013`: PostgreSQL and admin security.
+- `build/phase-03-07-system-without-accounts-20261017`: accountless system foundations.
+- **`build/secure-onboarding-dashboard-20261017`**: current original RTL dashboard + encrypted onboarding.
+- `main`: legacy bootstrap; NOT deployable.
 
-## Working branches
+## Quality gates
 
-- `build/phase-01-clean-foundation-20261013`: approved original foundation.
-- `build/phase-02-persistence-security-20261013`: ongoing Phase 02.
-- `main`: legacy bootstrap, **not** production or a complete app.
-- `feature/telegram-publisher-foundation`: superseded reference-only plan.
+Run Node 22.12+ with a disposable PostgreSQL 15 test database named `*_test` and `NODE_ENV=test`. Do not point test suites to production databases.
 
-Do not merge or deploy the draft branches without verifying their phase gates.
+```bash
+npm install --ignore-scripts
+npm run typecheck
+npm run test:web:syntax
+npm run test:web:contract
+npm test
+npm run test:db
+npm run test:api
+npm run test:telegram:db
+```
+
+CI evidence and known limitations: [Secure dashboard report](docs/qa/SECURE_DASHBOARD_REPORT_2026-10-17.md) and [secret onboarding policy](docs/security/SECRET_ONBOARDING.md).
+
+**Do not deploy or enable live publishing without review.**
