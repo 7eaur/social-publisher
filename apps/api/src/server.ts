@@ -185,18 +185,18 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
       if(!route.rows[0])return false;
       await client.query(
         `INSERT INTO schedule_rules(route_id,time_zone,iso_weekdays,slots,daily_limit,enabled)
-         VALUES($1,$2,$3,$4,$5,false)
+         VALUES($1,$2,$3,$4,$5,true)
          ON CONFLICT(route_id) DO UPDATE SET
            time_zone=excluded.time_zone,iso_weekdays=excluded.iso_weekdays,
            slots=excluded.slots,daily_limit=excluded.daily_limit,
-           enabled=false,updated_at=now()`,
+           enabled=true,updated_at=now()`,
          [id,data.timeZone,data.isoWeekdays,data.slots,data.dailyLimit]
       );
       await client.query("INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,'SCHEDULE_CONFIGURE','ROUTE',$2)",[user.userId,id]);
       return true;
     });
     if(!saved)return reply.code(404).send({error:"NOT_FOUND"});
-    return {saved:true,enabled:false};
+    return {saved:true,enabled:true,routeEnabled:false};
   });
   app.post("/api/routes/:id/resume",async(request,reply)=>{
     const user=await requireWriteAuth(request,reply);if(!user)return;
