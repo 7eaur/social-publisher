@@ -12,6 +12,7 @@ The deployment must still provision `DATABASE_URL`, `APP_ORIGIN`, `LOGIN_THROTTL
 - Meta form accepts an existing authorized account access token. OAuth acquisition, refresh, permission checks, app review and expiry handling are NOT yet implemented.
 - Each secret is bound to its database entity with AES-256-GCM and encrypted with the installation key; all metadata GET endpoints expose booleans ONLY, never raw values or ciphertext.
 - Replacing or revoking credentials disables the affected source/destination and its routes. Saving a token is **not** proof of a valid connection.
+- Meta App ID/Secret and S3-compatible storage endpoint, bucket, region and access credentials can be entered from the installation vault in the admin dashboard. They are encrypted under unique integration keys, and changing them disables publishing routes. GET shows configured/not configured flags only.
 - Show missing/secured-but-unverified status separately. No live publishes without tested account ownership, permissions, media and external outcome reconciliation.
 
 ## Security caveats
