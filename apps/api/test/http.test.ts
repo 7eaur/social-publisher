@@ -93,3 +93,37 @@ test("viewer role cannot change routes even with valid session and CSRF",async()
   });
   assert.equal(result.statusCode,403);
 });
+
+test("dashboard UI assets are served, but unauthenticated data stays private",async()=>{
+ const html=await app.inject({method:"GET",url:"/"});
+ assert.equal(html.statusCode,200);
+ assert.match(html.body,/Social Publisher/);
+ const script=await app.inject({method:"GET",url:"/ui/app.js"});
+ assert.equal(script.statusCode,200);
+ assert.match(script.headers["content-type"]??"",/javascript/);
+ const data=await app.inject({method:"GET",url:"/api/dashboard"});
+ assert.equal(data.statusCode,401);
+});
+
+test("schedules require fresh CSRF and cannot activate unconnected routes",async()=>{
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const row=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+ const session=await createSession(pool,row.rows[0]!.id);
+ const cookie="sp_session="+session.sessionToken;
+ const refreshed=await app.inject({method:"GET",url:"/api/auth/csrf",headers:{cookie}});
+ assert.equal(refreshed.statusCode,200);
+ const csrf=refreshed.json().csrfToken as string;
+ const body={timeZone:"Asia/Aden",isoWeekdays:[1,2,3],slots:["10:00"],dailyLimit:1};
+ const stale=await app.inject({method:"PUT",url:"/api/schedules/"+routeId,
+   headers:{origin,cookie,"x-csrf-token":session.csrfToken},payload:body});
+ assert.equal(stale.statusCode,403);
+ const saved=await app.inject({method:"PUT",url:"/api/schedules/"+routeId,
+   headers:{origin,cookie,"x-csrf-token":csrf},payload:body});
+ assert.equal(saved.statusCode,200);
+ const rules=await app.inject({method:"GET",url:"/api/schedules",headers:{cookie}});
+ assert.equal(rules.statusCode,200);
+ assert.ok(rules.json().schedules.some((x:{route_id:string})=>x.route_id===routeId));
+ const resumed=await app.inject({method:"POST",url:"/api/routes/"+routeId+"/resume",
+   headers:{origin,cookie,"x-csrf-token":csrf}});
+ assert.equal(resumed.statusCode,409);
+});
