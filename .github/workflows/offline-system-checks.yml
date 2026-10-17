@@ -33,6 +33,7 @@ jobs:
           node-version: '22'
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run test:web:syntax
       - run: npm test
       - run: npm run test:db
       - run: npm run test:api
