@@ -231,7 +231,7 @@ test("offline scheduler reserves once, requires account readiness and honors dai
    "INSERT INTO schedule_rules(route_id,time_zone,iso_weekdays,slots,daily_limit,enabled) VALUES($1,'Asia/Aden',ARRAY[1,2,3,4,5,6,7],ARRAY['09:30','11:30'],1,true)",[route]
  );
  await pool.query(
-   "INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,source_created_at) VALUES($1,$2,71,'TEXT',now()-interval '2 days')",
+   "INSERT INTO source_items(route_id,source_id,canonical_message_id,kind,caption,source_created_at) VALUES($1,$2,71,'TEXT','Scheduled sample',now()-interval '2 days')",
    [route,sourceId]
  );
  const first=new Date("2026-10-19T06:30:00Z");
