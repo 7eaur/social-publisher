@@ -1,3 +1,4 @@
+import {isIntegrationName,readIntegrationStatus,setIntegrationSecret,revokeIntegrationSecret} from "./integration-vault.ts";
 import {storeTelegramConnection,clearTelegramConnection,storeMetaCredential,clearMetaCredential} from "./secret-setup.ts";
 import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
 import {readFile} from "node:fs/promises";
@@ -384,6 +385,40 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     if(!validUuid.test(id))return reply.code(400).send({error:"INVALID_ID"});
     const revoked=await clearMetaCredential(pool,id,user.userId);
     return revoked?{revoked:true,active:false}:reply.code(404).send({error:"DESTINATION_NOT_FOUND"});
+  });
+
+  app.get("/api/setup/integrations",async(request,reply)=>{
+    const user=await requireUser(request,reply);
+    if(!user)return;
+    return {integrations:await readIntegrationStatus(pool)};
+  });
+  app.put("/api/setup/integrations/:name",{
+    bodyLimit:10000,
+    schema:{body:{type:"object",required:["value"],additionalProperties:false,
+      properties:{value:{type:"string",minLength:1,maxLength:8192}}}}
+  },async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {name}=request.params as {name:string};
+    if(!isIntegrationName(name))return reply.code(400).send({error:"UNSUPPORTED_SETTING"});
+    const key=config.secretsEncryptionKey;
+    if(!key||key.length!==32)return reply.code(503).send({error:"SECRET_STORE_NOT_CONFIGURED"});
+    const {value}=request.body as {value:string};
+    try{
+      await setIntegrationSecret(pool,name,value,key,user.userId);
+      return {saved:true,active:false,verified:false};
+    }catch(error){
+      if(error instanceof RangeError)return reply.code(400).send({error:"INVALID_CREDENTIALS"});
+      throw error;
+    }
+  });
+  app.delete("/api/setup/integrations/:name",async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);if(!user)return;
+    if(!hasPermission(user.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {name}=request.params as {name:string};
+    if(!isIntegrationName(name))return reply.code(400).send({error:"UNSUPPORTED_SETTING"});
+    await revokeIntegrationSecret(pool,name,user.userId);
+    return {revoked:true,active:false};
   });
   return app;
 }
