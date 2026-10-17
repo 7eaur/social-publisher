@@ -1,3 +1,4 @@
+import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
 import {readFile} from "node:fs/promises";
 import {dashboardSnapshot,queuePreview,schedulesPreview} from "./read-model.ts";
 import {validateScheduleRule,type ScheduleRule} from "../../../packages/core/src/schedule.ts";
@@ -154,6 +155,65 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     );
     if(updated.rowCount!==1)return reply.code(401).send({error:"UNAUTHORIZED"});
     return {csrfToken:csrf};
+  });
+  app.post("/api/setup/source",{
+    schema:{body:{
+      type:"object",additionalProperties:false,required:["slug","label","peerId"],
+      properties:{
+        slug:{type:"string",pattern:"^[a-z][a-z0-9_-]{0,63}$"},
+        label:{type:"string",minLength:1,maxLength:120},
+        peerId:{type:"string",pattern:"^-?[0-9]{5,30}$"}
+      }
+    }}
+  },async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);if(!user)return;
+    if(!hasPermission(user.role,"CONFIGURE"))return reply.code(403).send({error:"FORBIDDEN"});
+    const data=request.body as {slug:string;label:string;peerId:string};
+    try{
+      const result=await createDraftSource(pool,user.userId,data.slug,data.label.trim(),data.peerId);
+      return reply.code(201).send({...result,enabled:false});
+    }catch(error){
+      if((error as {code?:string}).code==="23505")return reply.code(409).send({error:"SOURCE_ALREADY_EXISTS"});
+      throw error;
+    }
+  });
+  app.post("/api/setup/destination",{
+    schema:{body:{
+      type:"object",additionalProperties:false,required:["platform","accountId","displayName"],
+      properties:{
+        platform:{type:"string",enum:["FACEBOOK","INSTAGRAM"]},
+        accountId:{type:"string",pattern:"^[0-9]{1,30}$"},
+        displayName:{type:"string",minLength:1,maxLength:120}
+      }
+    }}
+  },async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);if(!user)return;
+    if(!hasPermission(user.role,"CONFIGURE"))return reply.code(403).send({error:"FORBIDDEN"});
+    const d=request.body as {platform:"FACEBOOK"|"INSTAGRAM";accountId:string;displayName:string};
+    try{
+      const destinationId=await createDraftDestination(pool,user.userId,d.platform,d.accountId,d.displayName.trim());
+      return reply.code(201).send({destinationId,enabled:false});
+    }catch(error){
+      if((error as {code?:string}).code==="23505")return reply.code(409).send({error:"DESTINATION_ALREADY_EXISTS"});
+      throw error;
+    }
+  });
+  app.post("/api/setup/attach",{
+    schema:{body:{
+      type:"object",additionalProperties:false,required:["routeId","destinationId"],
+      properties:{routeId:{type:"string",format:"uuid"},destinationId:{type:"string",format:"uuid"}}
+    }}
+  },async(request,reply)=>{
+    const user=await requireWriteAuth(request,reply);if(!user)return;
+    if(!hasPermission(user.role,"CONFIGURE"))return reply.code(403).send({error:"FORBIDDEN"});
+    const d=request.body as {routeId:string;destinationId:string};
+    try{
+      const attached=await attachDraftDestination(pool,user.userId,d.routeId,d.destinationId);
+      return attached?{attached:true}:reply.code(409).send({error:"DRAFT_NOT_READY"});
+    }catch(error){
+      if((error as {code?:string}).code==="23505")return reply.code(409).send({error:"DESTINATION_ASSIGNED"});
+      throw error;
+    }
   });
   app.put("/api/schedules/:id",{
     schema:{body:{
