@@ -22,8 +22,12 @@ export interface GramJsMessageClient {
  * explicit setup step; this adapter cannot inspect other channels.
  */
 export class GramJsSourceAdapter implements TelegramHistoryPort {
- constructor(private readonly client:GramJsMessageClient,private readonly allowedPeer:string){
+ private readonly client:GramJsMessageClient;
+ private readonly allowedPeer:string;
+ constructor(client:GramJsMessageClient,allowedPeer:string){
    if(!allowedPeer.trim())throw new RangeError("Approved Telegram peer is required");
+   this.client=client;
+   this.allowedPeer=allowedPeer;
  }
  async fetchAfter(peer:string,after:number,limit:number):Promise<readonly TelegramMessage[]>{
    if(peer!==this.allowedPeer)throw new Error("Telegram peer not authorized for this adapter");

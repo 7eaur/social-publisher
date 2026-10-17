@@ -1,6 +1,8 @@
 import {MetaGraphClient,graphId,assertStagedMediaUrl} from "./graph.ts";
 export class InstagramPublisher {
- constructor(private readonly graph:MetaGraphClient,private readonly mediaHost:string){}
+ private readonly graph:MetaGraphClient;
+ private readonly mediaHost:string;
+ constructor(graph:MetaGraphClient,mediaHost:string){this.graph=graph;this.mediaHost=mediaHost;}
  /** Step 1: create an IG media container, then persist its ID BEFORE the next request. */
  async createImageContainer(igUserId:string,token:string,imageUrl:string,caption:string):Promise<string>{
    assertStagedMediaUrl(imageUrl,this.mediaHost);

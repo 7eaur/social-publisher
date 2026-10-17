@@ -3,7 +3,8 @@ export class UnknownRemoteOutcome extends Error {
  constructor(){super("Remote write outcome is unknown; reconcile before retry");this.name="UnknownRemoteOutcome";}
 }
 export class DefinitiveRemoteRejection extends Error {
- constructor(readonly status:number){super("Meta rejected the request (HTTP "+status+")");this.name="DefinitiveRemoteRejection";}
+ readonly status:number;
+ constructor(status:number){super("Meta rejected the request (HTTP "+status+")");this.name="DefinitiveRemoteRejection";this.status=status;}
 }
 export class InvalidRemoteResponse extends Error {
  constructor(){super("Unexpected Meta response; remote outcome is unknown");this.name="InvalidRemoteResponse";}
