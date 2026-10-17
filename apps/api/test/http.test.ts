@@ -260,3 +260,48 @@ test("without a master encryption key, secret entry fails closed",async()=>{
  assert.equal(response.statusCode,503);
  assert.equal(response.json().error,"SECRET_STORE_NOT_CONFIGURED");
 });
+
+test("installation vault stores only encrypted settings, supports revocation and refuses non-admin writes",async()=>{
+ const {randomBytes}=await import("node:crypto");
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const {readIntegrationSecret}=await import("../src/integration-vault.ts");
+ const key=randomBytes(32);
+ const api=await buildApi(pool,{origin,loginThrottlePepper:"pepper".repeat(10),
+   production:false,secretsEncryptionKey:key});
+ await api.ready();
+ try{
+   const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+   const session=await createSession(pool,admin.rows[0]!.id);
+   const cookie="sp_session="+session.sessionToken;
+   const headers={origin,cookie,"x-csrf-token":session.csrfToken};
+   const name="META_APP_SECRET";
+   const value="non-production-test-application-secret";
+   const invalid=await api.inject({method:"PUT",url:"/api/setup/integrations/SOME_ARBITRARY_NAME",
+     headers,payload:{value}});
+   assert.equal(invalid.statusCode,400);
+   const saved=await api.inject({method:"PUT",url:"/api/setup/integrations/"+name,
+     headers,payload:{value}});
+   assert.equal(saved.statusCode,200);
+   assert.equal(await readIntegrationSecret(pool,name,key),value);
+   const stored=await pool.query<{encrypted_value:Buffer}>(
+     "SELECT encrypted_value FROM integration_vault WHERE name=$1",[name]);
+   assert.ok(!stored.rows[0]!.encrypted_value.toString().includes(value));
+   const list=await api.inject({method:"GET",url:"/api/setup/integrations",headers:{cookie}});
+   assert.equal(list.statusCode,200);
+   assert.ok(list.json().integrations.some((s:{name:string;configured:boolean})=>s.name===name&&s.configured));
+   assert.ok(!list.body.includes(value));
+   const route=await pool.query<{enabled:boolean}>("SELECT enabled FROM routes WHERE id=$1",[routeId]);
+   assert.equal(route.rows[0]?.enabled,false);
+   const viewer=await pool.query<{id:string}>("SELECT id FROM users WHERE role='VIEWER' LIMIT 1");
+   if(viewer.rows[0]){
+     const sess=await createSession(pool,viewer.rows[0].id);
+     const denied=await api.inject({method:"PUT",url:"/api/setup/integrations/"+name,
+       headers:{origin,cookie:"sp_session="+sess.sessionToken,"x-csrf-token":sess.csrfToken},
+       payload:{value:"do-not-accept"}});
+     assert.equal(denied.statusCode,403);
+   }
+   const revoked=await api.inject({method:"DELETE",url:"/api/setup/integrations/"+name,headers});
+   assert.equal(revoked.statusCode,200);
+   assert.equal(await readIntegrationSecret(pool,name,key),null);
+ }finally{await api.close();}
+});
