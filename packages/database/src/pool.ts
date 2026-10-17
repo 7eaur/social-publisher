@@ -7,8 +7,13 @@ export function createDatabasePool(url = process.env.DATABASE_URL): PgPool {
   if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
     throw new Error("DATABASE_URL must be a PostgreSQL URL");
   }
-  if (process.env.NODE_ENV === "production" && parsed.searchParams.get("sslmode") !== "verify-full") {
-    throw new Error("Production DATABASE_URL must include sslmode=verify-full");
+  // Railway's service-to-service .railway.internal DNS uses the private WireGuard network.
+  // Public/external PostgreSQL connections must still validate TLS server identity.
+  const railwayPrivate=parsed.hostname.endsWith(".railway.internal") &&
+    parsed.hostname.length > ".railway.internal".length;
+  if (process.env.NODE_ENV === "production" && !railwayPrivate &&
+      parsed.searchParams.get("sslmode") !== "verify-full") {
+    throw new Error("Production external DATABASE_URL must include sslmode=verify-full");
   }
   return new pg.Pool({
     connectionString: url,

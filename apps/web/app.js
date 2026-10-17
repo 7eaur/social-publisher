@@ -28,6 +28,10 @@ async function request(path,opts={}){
  return res.json();
 }
 const errors={
+ INSTALL_DISABLED:"رمز التثبيت الأولي غير مضبوط في أسرار الاستضافة.",
+ INSTALL_DENIED:"رمز التثبيت غير صحيح.",
+ ALREADY_INSTALLED:"تم إنشاء حساب المدير مسبقًا. استخدم تسجيل الدخول.",
+ INVALID_EMAIL:"تحقق من البريد الإلكتروني.",
  SECRET_STORE_NOT_CONFIGURED:"الخادم لم يجهز مفتاح التشفير بعد. فعّله من مدير أسرار الاستضافة، ثم أعد المحاولة.",
  INVALID_CREDENTIALS:"بيانات الربط غير صالحة أو تجاوزت الحجم المسموح.",
  ADMIN_REQUIRED:"حفظ وإلغاء بيانات الربط متاح للمدير فقط.",
@@ -317,6 +321,44 @@ $("logout").addEventListener("click",async()=>{
 });
 async function restore(){
  try{await request("/api/me");const token=await request("/api/auth/csrf");state.csrf=token.csrfToken;await load();}
- catch{state.csrf="";$("dashboard").classList.add("hidden");$("login-panel").classList.remove("hidden");navigate();}
+ catch{
+   state.csrf="";
+   $("dashboard").classList.add("hidden");
+   try{
+     const status=await request("/api/install/status");
+     $("install-panel").classList.toggle("hidden",!status.required);
+     $("login-panel").classList.toggle("hidden",status.required);
+     if(status.required && !status.available){
+       $("install-hint").textContent="أضف رمز تثبيت عشوائيًا آمنًا في INSTALL_SETUP_TOKEN ضمن إعدادات Railway.";
+     }
+   }catch{
+     $("login-panel").classList.remove("hidden");
+     $("install-panel").classList.add("hidden");
+   }
+   navigate();
+ }
 }
+
+$("install-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  notice("");
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]');
+  const d=new FormData(form);
+  button.disabled=true;
+  try{
+    await request("/api/install/admin",{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({
+        setupToken:String(d.get("setupToken")),
+        email:String(d.get("email")),
+        password:String(d.get("password"))
+      })
+    });
+    form.reset();
+    $("install-panel").classList.add("hidden");
+    $("login-panel").classList.remove("hidden");
+    notice("تم إنشاء المدير الأول. سجّل الدخول، ثم احذف INSTALL_SETUP_TOKEN من الاستضافة.");
+  }catch(error){issue(error);}
+  finally{button.disabled=false;}
+});
 void restore();

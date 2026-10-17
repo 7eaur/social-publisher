@@ -321,3 +321,26 @@ test("readiness refuses a database without its required schema",async()=>{
    assert.deepEqual(result.json(),{status:"unavailable"});
  }finally{await isolated.close();}
 });
+
+test("first-admin installer denies missing key and cannot create a second admin",async()=>{
+  const current=await pool.query<{id:string}>("SELECT id FROM users WHERE role='ADMIN' LIMIT 1");
+  assert.ok(current.rows[0],"test already has an admin user");
+  const {randomBytes}=await import("node:crypto");
+  const setupToken=randomBytes(32).toString("base64url");
+  const isolated=await buildApi(pool,{origin,loginThrottlePepper:"pepper".repeat(10),
+    production:false,installSetupToken:setupToken});
+  await isolated.ready();
+  try{
+    const status=await isolated.inject({method:"GET",url:"/api/install/status"});
+    assert.equal(status.statusCode,200);
+    assert.deepEqual(status.json(),{required:false,available:true});
+    const bad=await isolated.inject({method:"POST",url:"/api/install/admin",
+      headers:{origin},payload:{email:"new-admin@test.invalid",password:"strong-test-password",setupToken:"a".repeat(43)}});
+    assert.equal(bad.statusCode,403);
+    const dupe=await isolated.inject({method:"POST",url:"/api/install/admin",
+      headers:{origin},payload:{email:"new-admin@test.invalid",password:"strong-test-password",setupToken}});
+    assert.equal(dupe.statusCode,409);
+    const unchanged=await pool.query<{n:number}>("SELECT count(*)::int AS n FROM users WHERE role='ADMIN'");
+    assert.ok(unchanged.rows[0]!.n>=1);
+  }finally{await isolated.close();}
+});
