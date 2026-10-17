@@ -16,6 +16,7 @@
         <a href="#overview" class="active">نظرة عامة</a>
         <a href="#routes">مسارات النشر</a>
         <a href="#queue">قائمة المحتوى</a>
+        <a href="#setup">الإعدادات</a>
       </nav>
       <div class="side-foot">نسخة التطوير <span class="build">الحسابات غير متصلة</span></div>
     </aside>
@@ -54,6 +55,40 @@
           <div class="table-wrap"><table><thead><tr><th>المسار</th><th>المحتوى</th><th>النوع</th><th>الحالة</th></tr></thead><tbody id="queue-rows"></tbody></table></div>
         </section>
       </div>
+        <section id="setup" class="panel-section">
+          <div class="heading"><div><h2>إعداد المسارات والحسابات</h2><p class="muted">ننشئ المسودات الآن، ثم نربط جلسة تيليجرام وصلاحيات Meta لاحقًا. لا نشر تلقائي قبل تفعيل الحسابات.</p></div></div>
+          <div class="setup-grid">
+            <form class="setup-form" id="source-form">
+              <h3>مصدر تيليجرام</h3>
+              <label>اسم المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required></label>
+              <label>عنوان القناة<input name="label" placeholder="قناة المحتوى" required></label>
+              <label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required></label>
+              <button type="submit">حفظ المصدر كمسودة</button>
+            </form>
+            <form class="setup-form" id="destination-form">
+              <h3>حساب مستهدف</h3>
+              <label>المنصة<select name="platform"><option value="FACEBOOK">Facebook</option><option value="INSTAGRAM">Instagram</option></select></label>
+              <label>اسم العرض<input name="displayName" placeholder="صفحتنا الرسمية" required></label>
+              <label>معرّف الحساب<input name="accountId" placeholder="123456789" pattern="[0-9]+" required></label>
+              <button type="submit">حفظ الحساب كمسودة</button>
+            </form>
+            <form class="setup-form" id="attach-form">
+              <h3>ربط المسار بالحساب</h3>
+              <label>المسار<select name="routeId" class="route-select" required></select></label>
+              <label>الحساب<select name="destinationId" id="destination-select" required></select></label>
+              <button type="submit">ربط المسودتين</button>
+            </form>
+            <form class="setup-form" id="schedule-form">
+              <h3>إعداد جدول النشر</h3>
+              <label>المسار<select name="routeId" class="route-select" required></select></label>
+              <label>المنطقة الزمنية<input name="timeZone" value="Asia/Aden" required></label>
+              <label>أيام الأسبوع (1 الإثنين – 7 الأحد)<input name="isoWeekdays" value="1,2,3,4,5,6,7" required></label>
+              <label>الأوقات بصيغة 24 ساعة<input name="slots" value="09:00" required></label>
+              <label>الحد اليومي<input name="dailyLimit" type="number" min="1" max="50" value="1" required></label>
+              <button type="submit">حفظ الجدول</button>
+            </form>
+          </div>
+        </section>
       <footer>يُفعّل النشر الحقيقي فقط بعد إعداد الجلسات والصلاحيات واجتياز الاختبارات.</footer>
     </main>
   </div>
