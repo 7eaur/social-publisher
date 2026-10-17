@@ -50,6 +50,7 @@ export async function scheduleDueRoutes(pool:Pool,now=new Date()):Promise<Enqueu
      const eligible=await client.query<{id:string}>(
        `SELECT si.id FROM source_items si
         WHERE si.route_id=$1
+          AND (si.kind <> 'TEXT' OR length(trim(coalesce(si.caption,'')))>0)
           AND NOT EXISTS(SELECT 1 FROM schedule_claims sc
             WHERE sc.route_id=si.route_id AND sc.source_item_id=si.id)
           AND NOT EXISTS(SELECT 1 FROM source_message_parts sp
