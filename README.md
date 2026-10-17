@@ -1,37 +1,62 @@
 # Social Publisher
 
-A new, private, self-hosted social content publishing project. **This is original source code, not a Postiz fork.**
+Original self-hosted social content distribution system. **Not a Postiz fork**.
+Postiz is a read-only reference for architecture, not a code dependency.
 
-## Goal
+## Workflow
 
-Ingest content from two private Telegram channels (Wasl Tech and religious content), schedule each stream independently, and publish to its connected Facebook Page and Instagram professional account. The owner's Telegram messages remain the source media archive.
+The planned platform indexes two distinct private Telegram channels, then
+automatically publishes compatible content to the corresponding Facebook Page
+and Instagram professional account, each on its own configurable schedule.
 
-Postiz (https://github.com/gitroomhq/postiz-app) is a **read-only architectural reference** for separation of concerns, scheduling, provider adapters and failure recovery. Its source tree, code and Git history are **not** included.
+## Current implementation: Phase 02
 
-## Status
+- Typed domain rules (source/destination identities, local-day scheduling, safe
+  publishing state transitions, platform compatibility).
+- Versioned PostgreSQL tables and checksummed migrations.
+- Atomic PostgreSQL outbox and schedule slot reservation (including concurrency,
+  unique constraints, lease fencing and uncertainty quarantine).
+- Encrypted credential persistence helper (AES-256-GCM), scrypt password
+  hashing, opaque database-backed login sessions, CSRF and RBAC rules.
+- Fastify admin API with health/readiness, login/logout, user profile, protected
+  route listing and protected pause.
+- Real PostgreSQL integration tests via GitHub Actions.
 
-**Phase 01: architecture and pure domain core only.** There is no running API, Telegram integration, database, Meta publishing, admin UI or deployment yet. Do not put real tokens in this repository.
+**Not implemented:** Telegram ingestion, actual Meta publishing, the
+background scheduler/worker runner, media transfer, frontend dashboard,
+deployment. Do not interpret passing backend tests as approval for live posting.
 
-## First-phase structure
+## Repository layout
 
-- packages/core/src: pure domain rules, publishing state transitions and canonical keys.
-- packages/core/test: deterministic unit tests for the critical invariants.
-- docs/architecture: adapters, persistence boundaries and technical decisions.
-- PROJECT_OVERVIEW.md / REQUIREMENTS.md / IMPLEMENTATION_PLAN.md: agreed product and stage gates.
+- `packages/core`: pure rules
+- `packages/database`: PostgreSQL migrations and transactional repositories
+- `packages/security`: authentication and encryption primitives
+- `apps/api`: independently testable administrative API
+- `docs`: decisions, phases and security review
 
-## Prerequisite and tests
+## Development prerequisites
 
-Node.js 22.12+ (major version 22). For phase 01's dependency-free unit tests:
+Node 22.12+, npm, PostgreSQL 15+. There is no Docker requirement in the
+application source and no production deployment.
 
-    npm test
+1. Configure secrets through a private environment/secrets manager; use
+   `.env.example` **only as a placeholder reference**.
+2. `npm install --ignore-scripts`
+3. `npm run db:migrate` with a disposable PostgreSQL connection.
+4. `npm test` for dependency-free core and security tests.
+5. `npm run test:db` and `npm run test:api` **only with a dedicated test DB**:
+   the DB suite explicitly TRUNCATEs its tables.
+6. `npm run typecheck`.
 
-For later type checking after installing developer dependencies:
+The admin bootstrap and local API commands require private environment
+credentials and are not part of the public test workflow. Do not run these
+commands against production until the deployment/security gate is approved.
 
-    npm install --ignore-scripts
-    npm run typecheck
+## Working branches
 
-No `.env` secrets are required to test the domain core. Do not deploy Phase 01.
+- `build/phase-01-clean-foundation-20261013`: approved original foundation.
+- `build/phase-02-persistence-security-20261013`: ongoing Phase 02.
+- `main`: legacy bootstrap, **not** production or a complete app.
+- `feature/telegram-publisher-foundation`: superseded reference-only plan.
 
-## Branch policy
-
-The active independent build branch is 'build/phase-01-clean-foundation-20261013'. Existing 'main' and the older 'feature/telegram-publisher-foundation' are historical bootstrap/docs; do not confuse them with the new application. The integration into 'main' is a separate approval gate.
+Do not merge or deploy the draft branches without verifying their phase gates.

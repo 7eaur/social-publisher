@@ -1,7 +1,7 @@
 # Social Publisher — Execution Plan (From Scratch)
 
 **Approved direction:** Original application; Postiz is a read-only engineering reference.  
-**Active implementation branch:** build/phase-01-clean-foundation-20261013  
+**Active implementation branch:** build/phase-02-persistence-security-20261013  
 **Last update:** 2026-10-13  
 **Previous Postiz-import plan:** superseded; no upstream import or fork required.
 
@@ -9,7 +9,7 @@
 
 For every phase: write a limited acceptance checklist, implement clean modules, add focused tests, inspect security and edge cases, document the result, and obtain owner confirmation before progressing. Never claim a phase passed without its evidence. Never promise software can have zero defects; reduce risk using gate checks.
 
-## Phase 01 — Foundation and domain (CURRENT)
+## Phase 01 — Foundation and domain (COMPLETED)
 
 1. Organize original repository, docs, Git branches and reference-only status.
 2. Design modular ports/adapters architecture and persistence boundaries.
@@ -21,7 +21,7 @@ For every phase: write a limited acceptance checklist, implement clean modules, 
 
 ## Phase 02 — Persistence, auth and jobs
 
-NestJS HTTP API, Prisma/PostgreSQL schema and migrations, admin login/session hardening, RBAC, encrypted credential storage, content/source/slot/publication tables, transactional outbox, atomic row claiming, health/readiness/audit. Test concurrent claims and rollback. No external publishes.
+**Implemented and in acceptance review:** Fastify authenticated HTTP API, checksummed SQL migrations through the pg client, user sessions and RBAC, AES-GCM encrypted credential repository, separate content/source/slot/publication records, transactional outbox, atomic row claiming, health/readiness/audit, and real PostgreSQL integration tests. The background scheduler/worker runner and remote-result reconciliation belong to Phases 04–05. No external publishes.
 
 ## Phase 03 — Telegram ingestion
 
@@ -49,11 +49,11 @@ Security review, integration/E2E and fault injection, performance and cost measu
 
 ## Architectural decisions
 
-See docs/architecture/ARCHITECTURE.md and docs/decisions/ADR-0001-original-system.md.
+See docs/architecture/ARCHITECTURE.md and ADR-0001, ADR-0002, ADR-0003 under docs/decisions/.
 
 ## Current repository state
 
 - 'main' is an earlier bootstrap and is not a runnable Postiz application.
 - 'feature/telegram-publisher-foundation' retains historical plans based on importing Postiz; do not follow them.
-- The current build is isolated on 'build/phase-01-clean-foundation-20261013'.
+- Phase 01 is isolated on 'build/phase-01-clean-foundation-20261013'.\n- Phase 02 is isolated on 'build/phase-02-persistence-security-20261013'.
 - Until stage acceptance, leave 'main', original branches and Railway unchanged.

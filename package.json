@@ -1,17 +1,28 @@
 {
   "name": "social-publisher",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "engines": {
     "node": ">=22.12.0 <23"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test packages/core/test/schedule.test.ts packages/core/test/platform-policy.test.ts packages/core/test/publication.test.ts packages/core/test/ids.test.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "test": "node --experimental-strip-types --test packages/core/test/*.test.ts packages/security/test/*.test.ts",
+    "test:db": "node --experimental-strip-types --test packages/database/test/*.test.ts",
+    "db:migrate": "node --experimental-strip-types packages/database/src/migrate.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:api": "node --experimental-strip-types --test apps/api/test/*.test.ts",
+    "api:start": "node --experimental-strip-types apps/api/src/start.ts",
+    "admin:bootstrap": "node --experimental-strip-types apps/api/src/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "pg": "8.13.3",
+    "fastify": "5.6.0",
+    "@fastify/cookie": "11.1.2"
   },
   "devDependencies": {
     "@types/node": "22.15.0",
+    "@types/pg": "8.11.11",
     "typescript": "5.9.3"
   },
   "workspaces": [
