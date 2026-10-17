@@ -101,6 +101,28 @@
               <form id="telegram-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / TELEGRAM SESSION</span><h3>جلسة تيليجرام</h3><p class="muted">مخصصة لجلسة مصرّح بها مسبقًا. لا ننشئ رموز تحقق أو نسحب قنوات غير محددة.</p><label>المصدر<select id="telegram-secret-source" name="sourceId" required></select></label><label>API ID<input name="apiId" type="number" min="1" max="2147483647" required autocomplete="off"></label><label>API Hash<input name="apiHash" type="password" required autocomplete="new-password" maxlength="512"></label><label>Session String<textarea name="sessionString" required rows="3" maxlength="16000" spellcheck="false" placeholder="أدخل الجلسة المصرح بها هنا فقط"></textarea></label><button type="submit" class="primary-button">حفظ مشفّر وإبقاء القناة معطّلة</button></form>
               <form id="meta-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / META ACCESS</span><h3>رمز حساب Meta</h3><p class="muted">احفظ رمز وصول مصرحًا به لصفحتك أو لحسابك المهني. التفعيل ينتظر فحص الصلاحيات.</p><label>الحساب<select name="destinationId" id="meta-secret-destination" required></select></label><label>Access Token<textarea name="accessToken" required rows="5" maxlength="16000" spellcheck="false" placeholder="رمز الحساب — لن يُعرض بعد الحفظ"></textarea></label><button type="submit" class="primary-button">حفظ الرمز مشفّرًا</button></form>
             </div>
+            <div id="vault-section">
+              <div class="section-heading"><span class="eyebrow">INSTALLATION VAULT</span><h2>تكامل Meta والتخزين السحابي</h2><p class="muted">يمكن إضافة إعدادات التطبيق والتخزين من لوحة الإدارة. تُحفظ مشفّرة ولا تُعاد قيمها إلى المتصفح.</p></div>
+              <div class="setup-grid">
+                <form id="integration-secret-form" class="setup-form secure-form" autocomplete="off">
+                  <span class="step-label">الإعدادات العامة / ENCRYPTED VAULT</span>
+                  <h3>إضافة أو تحديث إعداد محمي</h3>
+                  <label>اسم الإعداد<select name="name" id="integration-secret-name" required>
+                    <option value="META_APP_ID">Meta App ID</option>
+                    <option value="META_APP_SECRET">Meta App Secret</option>
+                    <option value="STORAGE_ACCESS_KEY_ID">Storage Access Key ID</option>
+                    <option value="STORAGE_SECRET_ACCESS_KEY">Storage Secret Access Key</option>
+                    <option value="STORAGE_BUCKET">Storage Bucket</option>
+                    <option value="STORAGE_REGION">Storage Region</option>
+                    <option value="STORAGE_ENDPOINT">Storage Endpoint</option>
+                    <option value="STORAGE_PUBLIC_HOST">Public Staging Host</option>
+                  </select></label>
+                  <label>القيمة<input name="value" type="password" autocomplete="new-password" required maxlength="8192" placeholder="أدخل القيمة هنا فقط"></label>
+                  <button class="primary-button" type="submit">حفظ الإعداد مشفّرًا</button>
+                </form>
+                <article class="panel"><div class="panel-header"><div><h3>حالة إعدادات التكامل</h3><p class="muted">نتحقق من وجود القيمة دون كشفها أو السماح بقراءتها.</p></div></div><div id="integration-status-list" class="status-list"></div></article>
+              </div>
+            </div>
             <div class="panel security-notes"><h3>ملاحظة أمنية</h3><p>يلزم توفير مفتاح تشفير عام للتثبيت عبر مدير أسرار الاستضافة. ولا نعرض أي قيمة سرية بعد حفظها. لا يتم تشغيل نشر حقيقي تلقائيًا عند حفظ البيانات.</p></div>
           </section>
         </div>
