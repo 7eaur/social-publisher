@@ -93,3 +93,8 @@ h1,h2,h3,p{margin-top:0}h1{font-size:28px;letter-spacing:-.4px;margin-bottom:9px
 .wizard-status{margin-top:16px;border:1px solid #d6e5ec;background:#f5f9fb;border-radius:10px;padding:14px;color:#3a5970;line-height:1.8;font-size:12px}
 #tg-wizard-cancel{margin-top:11px}
 @media(max-width:900px){.wizard-fields{grid-template-columns:1fr}}
+
+.advanced-tg-options{align-self:stretch;border:1px dashed #ccdde7;border-radius:12px;padding:13px;background:#f8fafc}
+.advanced-tg-options summary{cursor:pointer;font-size:12px;color:#5b7486;font-weight:700;line-height:1.6}
+.advanced-tg-options[open] summary{margin-bottom:14px}
+.advanced-tg-options .setup-form{background:#fff}
