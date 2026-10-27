@@ -55,3 +55,15 @@ test("login, first-install and dashboard are separate documents with dedicated s
  assert.match(installJs,/window\.location\.replace\("\/login\?setup=complete"\)/);
  for(const script of [js,loginJs,installJs])assert.doesNotMatch(script,/localStorage|sessionStorage|innerHTML/);
 });
+
+test("Telegram guided connection is a proper staged secret form, not a fake account selector",()=>{
+ for(const id of ["tg-connect-account","tg-connect-code","tg-connect-password","tg-connect-channel","tg-wizard-status"]){
+   assert.match(html,new RegExp('id="'+id+'"'));
+ }
+ assert.match(js,/\/api\/telegram\/connect\/start/);
+ assert.match(js,/\/api\/telegram\/connect\/code/);
+ assert.match(js,/\/api\/telegram\/connect\/password/);
+ assert.match(js,/\/api\/telegram\/connect\/channel/);
+ assert.match(html,/type="password" autocomplete="off"/);
+ assert.match(js,/telegram-wizard-panel/);
+});

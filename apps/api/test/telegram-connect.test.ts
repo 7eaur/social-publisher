@@ -34,7 +34,7 @@ const factory:TelegramGatewayFactory=async(apiId,apiHash)=>{
   },
   async inspectChannel(reference){
    assert.equal(reference,"@wasltech");
-   return {peerId:"-100123456789012",title:"Wasl Tech",username:"wasltech"};
+   return {peerId:"-100123456789012",title:"Wasl Tech",username:"wasltech",latestMessageId:98765};
   },
   sessionString:()=>"fake-telegram-string-session",
   async close(){disconnected++;}
@@ -108,16 +108,17 @@ test("wizard protects every stage and follows code → 2FA → verified channel"
  assert.equal(verified.json().verifiedRead,true);
  assert.equal(verified.json().routeEnabled,false);
  assert.equal(verified.json().channel.peerId,"-100123456789012");
+ assert.equal(verified.json().channel.startsAfterMessageId,98765);
  assert.doesNotMatch(verified.body,/fake-telegram-string-session|a{32}/);
- const persisted=await pool.query<{enabled:boolean;route_enabled:boolean;has_session:boolean;has_api:boolean}>(
+ const persisted=await pool.query<{enabled:boolean;route_enabled:boolean;has_session:boolean;has_api:boolean;last_indexed_message_id:string|null}>(
   `SELECT cs.enabled,r.enabled AS route_enabled,
-       (ts.source_id IS NOT NULL) AS has_session,(tc.source_id IS NOT NULL) AS has_api
+       (ts.source_id IS NOT NULL) AS has_session,(tc.source_id IS NOT NULL) AS has_api,cs.last_indexed_message_id::text
      FROM content_sources cs JOIN routes r ON r.source_id=cs.id
      LEFT JOIN telegram_session_credentials ts ON ts.source_id=cs.id
      LEFT JOIN telegram_api_credentials tc ON tc.source_id=cs.id
      WHERE cs.id=$1`,[verified.json().sourceId]
  );
- assert.deepEqual(persisted.rows[0],{enabled:true,route_enabled:false,has_session:true,has_api:true});
+ assert.deepEqual(persisted.rows[0],{enabled:true,route_enabled:false,has_session:true,has_api:true,last_indexed_message_id:"98765"});
  assert.equal(disconnected,1);
  const stale=await app.inject({method:"POST",url:"/api/telegram/connect/code",
    headers:auth(),payload:{attemptId,code:"12345"}});

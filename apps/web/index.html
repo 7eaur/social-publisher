@@ -82,7 +82,7 @@
             <article class="panel telegram-onboard" id="telegram-wizard-panel">
               <div class="panel-header">
                 <div><span class="eyebrow">GUIDED TELEGRAM AUTHORIZATION</span><h2>ربط حساب تيليجرام والتحقق من القناة</h2>
-                <p class="muted">من الهاتف إلى رمز التحقق ثم كلمة مرور التحقق بخطوتين إذا كانت مفعّلة، وبعدها اختبار قراءة القناة. لا يتم تفعيل النشر تلقائيًا.</p></div>
+                <p class="muted">من الهاتف إلى رمز التحقق ثم كلمة مرور التحقق بخطوتين إذا كانت مفعّلة، وبعدها اختبار قراءة القناة. ستبدأ متابعة المحتوى بعد آخر منشور حالي، دون إعادة نشر الأرشيف السابق. لا يتم تفعيل النشر تلقائيًا.</p></div>
                 <span class="soft-pill">اتصال MTProto حقيقي</span>
               </div>
               <div class="wizard-steps"><span data-tg-step="ACCOUNT" class="selected">١. الحساب</span><span data-tg-step="CODE">٢. الرمز</span><span data-tg-step="PASSWORD">٣. التحقق بخطوتين</span><span data-tg-step="CHANNEL">٤. القناة</span></div>
@@ -110,7 +110,7 @@
               </form>
               <form id="tg-connect-channel" class="setup-form telegram-wizard-form hidden" autocomplete="off">
                 <h3>اختيار قناة المحتوى</h3>
-                <p class="muted">أدخل رابط قناة عامة مثل https://t.me/channelname أو @channelname أو المعرّف -100... لقناة يستطيع الحساب قراءتها. روابط الدعوة الخاصة لا تنضم للقناة تلقائيًا.</p>
+                <p class="muted">أدخل رابط قناة عامة مثل https://t.me/channelname أو @channelname أو المعرّف -100... لقناة يستطيع الحساب قراءتها. روابط الدعوة الخاصة لا تنضم للقناة تلقائيًا. لا يتم استيراد الرسائل القديمة تلقائيًا.</p>
                 <div class="wizard-fields">
                   <label>رابط القناة أو معرّفها<input name="reference" type="text" required maxlength="150" placeholder="https://t.me/example"></label>
                   <label>رمز مسار النشر<input name="slug" type="text" pattern="[a-z][a-z0-9_-]{0,63}" required placeholder="wasl-tech"></label>

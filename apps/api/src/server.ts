@@ -341,11 +341,12 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
         apiId:verified.apiId,apiHash:verified.apiHash,sessionString:verified.sessionString
       },key);
       if(!stored)throw new Error("Verified source could not be stored");
-      await pool.query("UPDATE content_sources SET enabled=true WHERE id=$1::uuid",[source.sourceId]);
+      await pool.query("UPDATE content_sources SET enabled=true,last_indexed_message_id=$2 WHERE id=$1::uuid",
+        [source.sourceId,verified.channel.latestMessageId]);
       await telegramWizard.finish(actor.userId,attemptId);
       return reply.code(201).send({
         sourceId:source.sourceId,routeId:source.routeId,
-        channel:{peerId:verified.channel.peerId,title:verified.channel.title,username:verified.channel.username},
+        channel:{peerId:verified.channel.peerId,title:verified.channel.title,username:verified.channel.username,startsAfterMessageId:verified.channel.latestMessageId},
         verifiedRead:true,routeEnabled:false,livePublishing:false
       });
     }catch(error){return telegramActionError(error,reply);}

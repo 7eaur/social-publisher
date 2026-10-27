@@ -261,6 +261,7 @@ function renderSetup(){
    vault.append(item);
  }
  $("vault-section").classList.toggle("hidden",state.me.role!=="ADMIN");
+ $("telegram-wizard-panel").classList.toggle("hidden",state.me.role!=="ADMIN");
  const secured=state.catalog.secretStoreReady;
  $("secret-store-indicator").textContent=secured?"خزنة التشفير جاهزة":"مفتاح التشفير لم يُضبط بالخادم";
  $("credential-setup").classList.toggle("hidden",state.me.role!=="ADMIN");
@@ -381,7 +382,7 @@ void telegramForm("tg-connect-channel",d=>({
 }),async data=>{
  tgWizard.attemptId=null;
  showTelegramStage("ACCOUNT");
- tgStatus("نجح اختبار قراءة القناة "+data.channel.title+" وحُفظت الجلسة مشفّرة. مسار النشر ما زال معطّلًا حتى اكتمال ربط الوجهات.");
+ tgStatus("تم التحقق من قراءة قناة "+data.channel.title+" وحفظ الجلسة مشفّرة. ستبدأ المزامنة المستقبلية من المنشورات الجديدة فقط، ومسار النشر يبقى معطّلًا.");
  await load();
 });
 $("tg-wizard-cancel").addEventListener("click",async()=>{
