@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#102c4f">
+  <meta name="robots" content="noindex,nofollow">
+  <title>تسجيل الدخول | Social Publisher</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <script src="/ui/login.js" type="module"></script>
+</head>
+<body class="auth-page">
+  <main class="auth-container">
+    <header class="auth-header">
+      <div class="auth-brand"><span class="brand-icon">SP</span><span class="auth-brand-name">Social Publisher<small>منصة إدارة النشر</small></span></div>
+      <span class="auth-lock">◈ اتصال آمن</span>
+    </header>
+
+    <div class="auth-content">
+      <section class="auth-promo" aria-label="مميزات لوحة التحكم">
+        <span class="auth-kicker"><span class="auth-kicker-dot"></span>مركز التحكم بالنشر</span>
+        <h1>إدارة محتواك،<span>بوضوح ومن مكان واحد.</span></h1>
+        <p>جهّز مصادر تيليجرام، واربط حسابات النشر، وحدد الجداول، وتابع كل شيء من لوحة واحدة.</p>
+        <div class="auth-promo-grid">
+          <div class="auth-promo-item"><span aria-hidden="true">⌁</span><b>مصادر مستقلة</b><small>قنوات ومحتوى منظم</small></div>
+          <div class="auth-promo-item"><span aria-hidden="true">▦</span><b>نشر مجدول</b><small>مواعيد واضحة لكل مسار</small></div>
+          <div class="auth-promo-item"><span aria-hidden="true">◎</span><b>إدارة الحسابات</b><small>أمان ومتابعة من مكان واحد</small></div>
+        </div>
+      </section>
+      <section class="auth-panel" aria-labelledby="login-title">
+        <div class="auth-card-top"><span class="auth-card-icon" aria-hidden="true">↳</span><span>حساب الإدارة</span></div>
+        <h2 id="login-title">أهلًا بعودتك</h2>
+        <p class="auth-description">سجّل الدخول للانتقال إلى لوحة التحكم الخاصة بك.</p>
+        <div id="login-message" role="status" aria-live="polite" class="auth-message hidden"></div>
+        <form id="login-form" class="auth-form" autocomplete="on">
+          <label for="login-email">البريد الإلكتروني</label>
+          <input id="login-email" name="email" type="email" inputmode="email" autocomplete="username" placeholder="admin@example.com" required maxlength="254">
+          <label for="login-password">كلمة المرور</label>
+          <div class="auth-password-wrap">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="أدخل كلمة المرور" required>
+            <button id="password-visibility" type="button" class="auth-eye" aria-label="إظهار كلمة المرور" aria-pressed="false">إظهار</button>
+          </div>
+          <button id="login-submit" class="primary-button auth-submit" type="submit">دخول إلى لوحة التحكم <span aria-hidden="true">←</span></button>
+        </form>
+        <div class="auth-help"><span aria-hidden="true">♧</span> يتم تأمين جلستك على الخادم. لا يتم حفظ كلمات المرور في المتصفح بواسطة النظام.</div>
+      </section>
+    </div>
+    <footer class="auth-footer"><span>Social Publisher © 2026</span><span>لا تشارك كلمة المرور أو رموز الربط مع أي شخص.</span></footer>
+  </main>
+</body>
+</html>

@@ -23,11 +23,13 @@ async function request(path,opts={}){
  if(!res.ok){
    const failure=await res.json().catch(()=>({}));
    const code=failure.error || "HTTP_"+res.status;
+   if (res.status===401) window.location.replace("/login");
    throw new Error(code);
  }
  return res.json();
 }
 const errors={
+ INVALID_CREDENTIALS:"البريد الإلكتروني أو كلمة المرور غير صحيحة.",
  INSTALL_DISABLED:"رمز التثبيت الأولي غير مضبوط في أسرار الاستضافة.",
  INSTALL_DENIED:"رمز التثبيت غير صحيح.",
  ALREADY_INSTALLED:"تم إنشاء حساب المدير مسبقًا. استخدم تسجيل الدخول.",
@@ -253,7 +255,6 @@ async function load(){
  ]);
  state.summary=summary;state.queue=queue.items||[];state.catalog=catalog;
  state.me=me;state.schedules=schedules.schedules||[];state.integrations=integrations.integrations||[];
- $("login-panel").classList.add("hidden");$("dashboard").classList.remove("hidden");
  $("logout").classList.remove("hidden");
  renderOverview();renderRoutes();renderQueue();renderPlanner();renderAccounts();renderSetup();navigate();
 }
@@ -304,61 +305,21 @@ bindForm("integration-secret-form",d=>({
 }),{secret:true});
 $("queue-search").addEventListener("input",renderQueue);
 window.addEventListener("hashchange",navigate);
-$("login-form").addEventListener("submit",async event=>{
- event.preventDefault();notice("");
- const d=new FormData(event.currentTarget);
- try{
-   const logged=await request("/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},
-     body:JSON.stringify({email:d.get("email"),password:d.get("password")})});
-   state.csrf=logged.csrfToken;event.currentTarget.reset();await load();
- }catch(error){issue(error);}
-});
 $("logout").addEventListener("click",async()=>{
- try{await mutate("/api/auth/logout");state.csrf="";state.me=null;
-   $("dashboard").classList.add("hidden");$("login-panel").classList.remove("hidden");
-   $("logout").classList.add("hidden");notice("");
- }catch(e){issue(e);}
+ try {
+   await mutate("/api/auth/logout");
+   state.csrf="";
+   window.location.replace("/login");
+ } catch (e) { issue(e); }
 });
 async function restore(){
- try{await request("/api/me");const token=await request("/api/auth/csrf");state.csrf=token.csrfToken;await load();}
- catch{
-   state.csrf="";
-   $("dashboard").classList.add("hidden");
-   try{
-     const status=await request("/api/install/status");
-     $("install-panel").classList.toggle("hidden",!status.required);
-     $("login-panel").classList.toggle("hidden",status.required);
-     if(status.required && !status.available){
-       $("install-hint").textContent="أضف رمز تثبيت عشوائيًا آمنًا في INSTALL_SETUP_TOKEN ضمن إعدادات Railway.";
-     }
-   }catch{
-     $("login-panel").classList.remove("hidden");
-     $("install-panel").classList.add("hidden");
-   }
-   navigate();
+ try{
+   await request("/api/me");
+   const token=await request("/api/auth/csrf");
+   state.csrf=token.csrfToken;
+   await load();
+ }catch(error){
+   window.location.replace("/login");
  }
 }
-
-$("install-form").addEventListener("submit",async event=>{
-  event.preventDefault();
-  notice("");
-  const form=event.currentTarget,button=form.querySelector('button[type="submit"]');
-  const d=new FormData(form);
-  button.disabled=true;
-  try{
-    await request("/api/install/admin",{
-      method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({
-        setupToken:String(d.get("setupToken")),
-        email:String(d.get("email")),
-        password:String(d.get("password"))
-      })
-    });
-    form.reset();
-    $("install-panel").classList.add("hidden");
-    $("login-panel").classList.remove("hidden");
-    notice("تم إنشاء المدير الأول. سجّل الدخول، ثم احذف INSTALL_SETUP_TOKEN من الاستضافة.");
-  }catch(error){issue(error);}
-  finally{button.disabled=false;}
-});
 void restore();

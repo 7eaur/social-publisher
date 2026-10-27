@@ -33,6 +33,13 @@ after(async()=>{
   await root.end();
 });
 test("first visit installs one administrator using one-time high-entropy token",async()=>{
+  const first=await app.inject({method:"GET",url:"/login"});
+  assert.equal(first.statusCode,302);
+  assert.equal(first.headers.location,"/setup");
+  const setupPage=await app.inject({method:"GET",url:"/setup"});
+  assert.equal(setupPage.statusCode,200);
+  assert.match(setupPage.body,/id="install-form"/);
+  assert.doesNotMatch(setupPage.body,/id="login-form"/);
   const status=await app.inject({method:"GET",url:"/api/install/status"});
   assert.deepEqual(status.json(),{required:true,available:true});
   const email="first-owner@example.invalid";
@@ -44,6 +51,10 @@ test("first visit installs one administrator using one-time high-entropy token",
     headers:{origin},payload:{setupToken,email,password}});
   assert.equal(installed.statusCode,201);
   assert.deepEqual(installed.json(),{installed:true});
+  const closed=await app.inject({method:"GET",url:"/setup"});
+  assert.equal(closed.statusCode,302);
+  assert.equal(closed.headers.location,"/login");
+  assert.equal((await app.inject({method:"GET",url:"/login"})).statusCode,200);
   assert.deepEqual((await app.inject({method:"GET",url:"/api/install/status"})).json(),
     {required:false,available:true});
   const second=await app.inject({method:"POST",url:"/api/install/admin",
@@ -58,4 +69,7 @@ test("first visit installs one administrator using one-time high-entropy token",
   const profile=await app.inject({method:"GET",url:"/api/me",headers:{cookie:session}});
   assert.equal(profile.statusCode,200);
   assert.equal(profile.json().role,"ADMIN");
+  const dashboard=await app.inject({method:"GET",url:"/dashboard",headers:{cookie:session}});
+  assert.equal(dashboard.statusCode,200);
+  assert.match(dashboard.body,/id="dashboard"/);
 });

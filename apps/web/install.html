@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#102c4f">
+  <meta name="robots" content="noindex,nofollow">
+  <title>التهيئة الأولى | Social Publisher</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <script src="/ui/install.js" type="module"></script>
+</head>
+<body class="auth-page">
+  <main class="auth-container">
+    <header class="auth-header">
+      <div class="auth-brand"><span class="brand-icon">SP</span><span class="auth-brand-name">Social Publisher<small>منصة إدارة النشر</small></span></div>
+      <span class="auth-lock">◈ اتصال آمن</span>
+    </header>
+
+    <div class="auth-content">
+      <section class="auth-promo" aria-label="إعداد المنصة">
+        <span class="auth-kicker"><span class="auth-kicker-dot"></span>تهيئة أول تشغيل</span>
+        <h1>جهّز حساب المدير،<span>ثم ابدأ من الداشبورد.</span></h1>
+        <p>هذه خطوة واحدة فقط عند إعداد النظام لأول مرة. بعد إنشاء المدير تختفي صفحة التهيئة وتصبح صفحة تسجيل الدخول هي المدخل الأساسي.</p>
+        <div class="auth-promo-grid">
+          <div class="auth-promo-item"><span aria-hidden="true">✓</span><b>مرة واحدة</b><small>تُقفل التهيئة بعد النجاح</small></div>
+          <div class="auth-promo-item"><span aria-hidden="true">♧</span><b>حساب محمي</b><small>تشفير كلمة المرور بالخادم</small></div>
+        </div>
+      </section>
+      <section class="auth-panel" aria-labelledby="install-title">
+        <div class="auth-card-top"><span class="auth-card-icon" aria-hidden="true">⌘</span><span>تهيئة النظام</span></div>
+        <h2 id="install-title">إنشاء المدير الأول</h2>
+        <p id="install-hint" class="auth-description">أدخل رمز التثبيت من متغيرات Railway، ثم اختر بريدك وكلمة مرور قوية.</p>
+        <div id="install-message" role="status" aria-live="polite" class="auth-message hidden"></div>
+        <form id="install-form" class="auth-form" autocomplete="off">
+          <label for="setup-token">رمز التثبيت</label>
+          <input id="setup-token" name="setupToken" type="password" minlength="43" maxlength="43" autocomplete="off" required>
+          <label for="setup-email">البريد الإلكتروني للمدير</label>
+          <input id="setup-email" name="email" type="email" autocomplete="username" maxlength="254" required>
+          <label for="setup-password">كلمة مرور قوية</label>
+          <input id="setup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+          <button id="install-submit" class="primary-button auth-submit" type="submit">إنشاء المدير والانتقال إلى الدخول <span aria-hidden="true">←</span></button>
+        </form>
+        <div class="auth-help">بعد إنشاء الحساب احذف INSTALL_SETUP_TOKEN من إعدادات Railway، واحتفظ بمفتاح التشفير الأساسي.</div>
+      </section>
+    </div>
+    <footer class="auth-footer"><span>Social Publisher © 2026</span><span>لا تشارك كلمة المرور أو رموز الربط مع أي شخص.</span></footer>
+  </main>
+</body>
+</html>

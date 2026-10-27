@@ -94,12 +94,40 @@ test("viewer role cannot change routes even with valid session and CSRF",async()
   assert.equal(result.statusCode,403);
 });
 
-test("dashboard UI assets are served, but unauthenticated data stays private",async()=>{
- const html=await app.inject({method:"GET",url:"/"});
- assert.equal(html.statusCode,200);
- assert.match(html.body,/Social Publisher/);
+test("login is a separate page, dashboard is session protected, and redirects are correct",async()=>{
+ const home=await app.inject({method:"GET",url:"/"});
+ assert.equal(home.statusCode,302);
+ assert.equal(home.headers.location,"/login");
+ const loginPage=await app.inject({method:"GET",url:"/login"});
+ assert.equal(loginPage.statusCode,200);
+ assert.match(loginPage.body,/id="login-form"/);
+ assert.doesNotMatch(loginPage.body,/id="dashboard"/);
+ const noDashboard=await app.inject({method:"GET",url:"/dashboard"});
+ assert.equal(noDashboard.statusCode,302);
+ assert.equal(noDashboard.headers.location,"/login");
+ const closedSetup=await app.inject({method:"GET",url:"/setup"});
+ assert.equal(closedSetup.statusCode,302);
+ assert.equal(closedSetup.headers.location,"/login");
+ const {createSession}=await import("../../../packages/security/src/sessions.ts");
+ const admin=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+ const session=await createSession(pool,admin.rows[0]!.id);
+ const cookie="sp_session="+session.sessionToken;
+ const signedHome=await app.inject({method:"GET",url:"/",headers:{cookie}});
+ assert.equal(signedHome.headers.location,"/dashboard");
+ const signedLogin=await app.inject({method:"GET",url:"/login",headers:{cookie}});
+ assert.equal(signedLogin.headers.location,"/dashboard");
+ const signedDashboard=await app.inject({method:"GET",url:"/dashboard",headers:{cookie}});
+ assert.equal(signedDashboard.statusCode,200);
+ assert.match(signedDashboard.body,/id="dashboard"/);
+ assert.doesNotMatch(signedDashboard.body,/id="login-form"/);
+ assert.doesNotMatch(signedDashboard.body,/id="install-form"/);
  const script=await app.inject({method:"GET",url:"/ui/app.js"});
+ const loginJs=await app.inject({method:"GET",url:"/ui/login.js"});
+ const installJs=await app.inject({method:"GET",url:"/ui/install.js"});
  assert.equal(script.statusCode,200);
+ assert.equal(loginJs.statusCode,200);
+ assert.equal(installJs.statusCode,200);
+ assert.match(loginJs.body,/window\.location\.replace\("\/dashboard"\)/);
  assert.match(script.headers["content-type"]??"",/javascript/);
  const data=await app.inject({method:"GET",url:"/api/dashboard"});
  assert.equal(data.statusCode,401);

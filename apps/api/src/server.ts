@@ -65,14 +65,17 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     return identity;
   }
 
-  app.get("/",async(_request,reply)=>
-    reply.type("text/html; charset=utf-8").send(await readFile(new URL("../../web/index.html",import.meta.url),"utf8"))
-  );
   app.get("/ui/app.js",async(_request,reply)=>
     reply.type("text/javascript; charset=utf-8").send(await readFile(new URL("../../web/app.js",import.meta.url),"utf8"))
   );
   app.get("/ui/style.css",async(_request,reply)=>
     reply.type("text/css; charset=utf-8").send(await readFile(new URL("../../web/style.css",import.meta.url),"utf8"))
+  );
+  app.get("/ui/login.js",async(_request,reply)=>
+    reply.type("text/javascript; charset=utf-8").send(await readFile(new URL("../../web/login.js",import.meta.url),"utf8"))
+  );
+  app.get("/ui/install.js",async(_request,reply)=>
+    reply.type("text/javascript; charset=utf-8").send(await readFile(new URL("../../web/install.js",import.meta.url),"utf8"))
   );
   app.get("/health/live",async()=>({status:"ok"}));
   app.get("/health/ready",async (_request,reply) => {
@@ -99,6 +102,34 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     const r=await pool.query("SELECT 1 FROM users WHERE role='ADMIN' LIMIT 1");
     return r.rowCount===1;
   };
+
+  // Page navigation is isolated from API authentication and all dashboard HTML
+  // requires a valid server-side session. Setup closes once the first admin exists.
+  const authenticated=async(request:FastifyRequest)=>{
+    const token=request.cookies[cookieName];
+    return token ? await findSession(pool,token) : null;
+  };
+  app.get("/",async(request,reply)=>{
+    const user=await authenticated(request);
+    return reply.redirect(user?"/dashboard":"/login");
+  });
+  app.get("/login",async(request,reply)=>{
+    const user=await authenticated(request);
+    if(user)return reply.redirect("/dashboard");
+    if(!await countAdmins())return reply.redirect("/setup");
+    return reply.type("text/html; charset=utf-8")
+      .send(await readFile(new URL("../../web/login.html",import.meta.url),"utf8"));
+  });
+  app.get("/setup",async(_request,reply)=>{
+    if(await countAdmins())return reply.redirect("/login");
+    return reply.type("text/html; charset=utf-8")
+      .send(await readFile(new URL("../../web/install.html",import.meta.url),"utf8"));
+  });
+  app.get("/dashboard",async(request,reply)=>{
+    if(!await authenticated(request))return reply.redirect("/login");
+    return reply.type("text/html; charset=utf-8")
+      .send(await readFile(new URL("../../web/index.html",import.meta.url),"utf8"));
+  });
   app.get("/api/install/status",async()=>({
     required:!(await countAdmins()),
     available:typeof config.installSetupToken==="string" &&
