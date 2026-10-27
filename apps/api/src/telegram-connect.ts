@@ -78,7 +78,12 @@ export const createTelegramGateway:TelegramGatewayFactory=async(apiId,apiHash)=>
        throw new TelegramOnboardingError("NOT_A_CHANNEL",400);
      }
      // Force a real read using this authorized account, without importing history.
-     for await(const _message of client.iterMessages(ref,{limit:1})){break;}
+     let latestMessageId:number|null=null;
+    for await(const message of client.iterMessages(ref,{limit:1})){
+      const id=Number(message.id);
+      latestMessageId=Number.isSafeInteger(id)&&id>0?id:null;
+      break;
+    }
      return {
        peerId:"-100"+entity.id.toString(),
        title:entity.title,
