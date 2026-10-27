@@ -1,3 +1,4 @@
+import {TelegramConnectionWizard,TelegramOnboardingError,type TelegramGatewayFactory} from "./telegram-connect.ts";
 import {isIntegrationName,readIntegrationStatus,setIntegrationSecret,revokeIntegrationSecret} from "./integration-vault.ts";
 import {storeTelegramConnection,clearTelegramConnection,storeMetaCredential,clearMetaCredential} from "./secret-setup.ts";
 import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
@@ -23,6 +24,8 @@ export interface ApiSettings {
   readonly installSetupToken?: string;
   /** Injection-only master key: never delivered to browser or stored in DB. */
   readonly secretsEncryptionKey?: Buffer;
+  /** Test adapter injection only. Runtime uses real Telegram MTProto. */
+  readonly telegramGatewayFactory?: TelegramGatewayFactory;
 }
 
 const validUuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -36,6 +39,8 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
   if (config.loginThrottlePepper.length < 32) throw new Error("LOGIN_THROTTLE_PEPPER is too short");
 
   const app = Fastify({logger: false, bodyLimit: 4096, trustProxy: false});
+  const telegramWizard=new TelegramConnectionWizard(config.telegramGatewayFactory);
+
   await app.register(cookie);
   const cookieName = config.production ? "__Host-sp_session" : "sp_session";
   const dummyPasswordHash = hashPassword("dummy-hash-to-limit-user-enumeration");
@@ -266,6 +271,91 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
     const user=await requireUser(request,reply);if(!user)return;
     return {...await setupCatalog(pool),secretStoreReady:config.secretsEncryptionKey?.length===32};
   });
+  // Authorized admin Telegram connection wizard. No OTP/password/session is logged or echoed.
+  const telegramActionError=(error:unknown,reply:FastifyReply)=>{
+    if(error instanceof TelegramOnboardingError)
+      return reply.code(error.httpStatus).send({error:error.code});
+    if((error as {code?:string}).code==="23505")
+      return reply.code(409).send({error:"SOURCE_ALREADY_EXISTS"});
+    throw error;
+  };
+  app.post("/api/telegram/connect/start",{
+    schema:{body:{type:"object",additionalProperties:false,required:["apiId","apiHash","phone"],
+      properties:{
+        apiId:{type:"integer",minimum:1,maximum:2147483647},
+        apiHash:{type:"string",minLength:15,maxLength:128},
+        phone:{type:"string",minLength:9,maxLength:16}
+      }
+    }}
+  },async(request,reply)=>{
+    const actor=await requireWriteAuth(request,reply);if(!actor)return;
+    if(!hasPermission(actor.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    if(!config.secretsEncryptionKey)return reply.code(503).send({error:"SECRET_STORE_NOT_CONFIGURED"});
+    const body=request.body as {apiId:number;apiHash:string;phone:string};
+    try{return await telegramWizard.start(actor.userId,body.apiId,body.apiHash,body.phone);}
+    catch(error){return telegramActionError(error,reply);}
+  });
+  app.post("/api/telegram/connect/code",{
+    schema:{body:{type:"object",additionalProperties:false,required:["attemptId","code"],
+      properties:{attemptId:{type:"string",format:"uuid"},code:{type:"string",minLength:4,maxLength:8}}
+    }}
+  },async(request,reply)=>{
+    const actor=await requireWriteAuth(request,reply);if(!actor)return;
+    if(!hasPermission(actor.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {attemptId,code}=request.body as {attemptId:string;code:string};
+    try{return await telegramWizard.code(actor.userId,attemptId,code);}
+    catch(error){return telegramActionError(error,reply);}
+  });
+  app.post("/api/telegram/connect/password",{
+    schema:{body:{type:"object",additionalProperties:false,required:["attemptId","password"],
+      properties:{attemptId:{type:"string",format:"uuid"},password:{type:"string",minLength:1,maxLength:256}}
+    }}
+  },async(request,reply)=>{
+    const actor=await requireWriteAuth(request,reply);if(!actor)return;
+    if(!hasPermission(actor.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const {attemptId,password}=request.body as {attemptId:string;password:string};
+    try{return await telegramWizard.password(actor.userId,attemptId,password);}
+    catch(error){return telegramActionError(error,reply);}
+  });
+  app.post("/api/telegram/connect/channel",{
+    schema:{body:{type:"object",additionalProperties:false,required:["attemptId","reference","slug","label"],
+      properties:{
+        attemptId:{type:"string",format:"uuid"},
+        reference:{type:"string",minLength:3,maxLength:150},
+        slug:{type:"string",pattern:"^[a-z][a-z0-9_-]{0,63}$"},
+        label:{type:"string",minLength:1,maxLength:120}
+      }
+    }}
+  },async(request,reply)=>{
+    const actor=await requireWriteAuth(request,reply);if(!actor)return;
+    if(!hasPermission(actor.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    const key=config.secretsEncryptionKey;
+    if(!key||key.length!==32)return reply.code(503).send({error:"SECRET_STORE_NOT_CONFIGURED"});
+    const {attemptId,reference,slug,label}=request.body as {attemptId:string;reference:string;slug:string;label:string};
+    try{
+      const verified=await telegramWizard.verifyChannel(actor.userId,attemptId,reference);
+      // A source is marked connected ONLY following a real Telegram history read.
+      // Routes remain paused; verified ingestion is not permission to publish.
+      const source=await createDraftSource(pool,actor.userId,slug,label.trim(),verified.channel.peerId);
+      const stored=await storeTelegramConnection(pool,source.sourceId,actor.userId,{
+        apiId:verified.apiId,apiHash:verified.apiHash,sessionString:verified.sessionString
+      },key);
+      if(!stored)throw new Error("Verified source could not be stored");
+      await pool.query("UPDATE content_sources SET enabled=true WHERE id=$1::uuid",[source.sourceId]);
+      await telegramWizard.finish(actor.userId,attemptId);
+      return reply.code(201).send({
+        sourceId:source.sourceId,routeId:source.routeId,
+        channel:{peerId:verified.channel.peerId,title:verified.channel.title,username:verified.channel.username},
+        verifiedRead:true,routeEnabled:false,livePublishing:false
+      });
+    }catch(error){return telegramActionError(error,reply);}
+  });
+  app.post("/api/telegram/connect/cancel",async(request,reply)=>{
+    const actor=await requireWriteAuth(request,reply);if(!actor)return;
+    if(!hasPermission(actor.role,"MANAGE_USERS"))return reply.code(403).send({error:"ADMIN_REQUIRED"});
+    return telegramWizard.cancel(actor.userId);
+  });
+
   app.post("/api/setup/source",{
     schema:{body:{
       type:"object",additionalProperties:false,required:["slug","label","peerId"],
