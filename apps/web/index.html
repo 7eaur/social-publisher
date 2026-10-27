@@ -38,38 +38,7 @@
       <main class="main">
         <div id="notice" role="status" aria-live="polite"></div>
 
-        <section id="install-panel" class="login-layout hidden">
-          <div class="login-intro">
-            <span class="eyebrow">FIRST RUN / ADMIN SETUP</span>
-            <h1>إعداد لوحة الإدارة لأول مرة</h1>
-            <p>يُنشأ حساب المدير الأول مرة واحدة، ثم تُقفل شاشة التثبيت نهائيًا بمجرد نجاح العملية.</p>
-            <div class="login-point">✓ رمز التثبيت موجود في أسرار الاستضافة فقط</div>
-            <div class="login-point">✓ تختار البريد وكلمة المرور من الواجهة مباشرة</div>
-          </div>
-          <form id="install-form" class="login-card" autocomplete="off">
-            <span class="eyebrow">SECURE INITIALIZATION</span>
-            <h2>إنشاء المدير الأول</h2>
-            <p class="muted" id="install-hint">أدخل رمز التثبيت الموجود في إعدادات الاستضافة.</p>
-            <label>رمز التثبيت الأولي<input name="setupToken" type="password" required minlength="43" maxlength="43" autocomplete="off"></label>
-            <label>بريد المدير<input name="email" type="email" required autocomplete="username"></label>
-            <label>كلمة مرور قوية<input name="password" type="password" required minlength="12" maxlength="256" autocomplete="new-password"></label>
-            <button class="primary-button" type="submit">إنشاء حساب المدير ←</button>
-            <p class="form-note">بعد النجاح، احذف INSTALL_SETUP_TOKEN من متغيرات Railway. لا ترسل رمز التثبيت أو كلمة المرور عبر المحادثة.</p>
-          </form>
-        </section>
-
-        <section id="login-panel" class="login-layout">
-          <div class="login-intro"><span class="eyebrow">SOCIAL PUBLISHER</span><h1>كل منشوراتك.<br>من مكان واحد.</h1><p>تحكم في مصادر تيليجرام وجداول النشر والحسابات، وتابع النتائج من لوحة عربية موحّدة.</p><div class="login-point">✓ معلومات الربط لا تظهر في الواجهة بعد حفظها</div><div class="login-point">✓ الصلاحيات وحالات النشر تدار من الخادم</div></div>
-          <form id="login-form" class="login-card" autocomplete="on">
-            <span class="eyebrow">الدخول الآمن</span><h2>مرحبًا بعودتك</h2><p class="muted">استخدم حساب الإدارة لفتح لوحة التحكم.</p>
-            <label>البريد الإلكتروني<input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></label>
-            <label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required placeholder="••••••••••••"></label>
-            <button class="primary-button" type="submit">تسجيل الدخول <span aria-hidden="true">←</span></button>
-            <p class="form-note">لا تُرسل أي جلسة أو رمز سري عبر المحادثة. أدخلها من إعدادات النظام فقط.</p>
-          </form>
-        </section>
-
-        <div id="dashboard" class="hidden">
+<div id="dashboard">
           <section class="view" data-view="overview">
             <div class="page-header"><div><span class="eyebrow">لوحة القيادة / OVERVIEW</span><h1>نظرة شاملة على النشر</h1><p class="muted">حالة المصادر والحسابات والمهام تُقرأ مباشرةً من النظام، دون بيانات تجريبية مضلّلة.</p></div><a class="primary-link" href="#settings" data-go="settings">تهيئة مساحة العمل <span>←</span></a></div>
             <div class="notice-banner"><div class="banner-mark">!</div><div><b>النظام في وضع إعداد آمن</b><p>يمكنك تجهيز جميع الإعدادات وحفظها؛ لن يبدأ إرسال منشورات حقيقية قبل التحقق والاعتماد.</p></div><span class="banner-tag">LIVE OFF</span></div>
