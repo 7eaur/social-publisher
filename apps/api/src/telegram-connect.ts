@@ -106,6 +106,7 @@ export class TelegramOnboardingError extends Error {
 export type TelegramLoginStage="CODE"|"PASSWORD"|"CHANNEL";
 interface Attempt{
  id:string;ownerId:string;stage:TelegramLoginStage;gateway:TelegramGateway;
+ timer:ReturnType<typeof setTimeout>;
  apiId:number;apiHash:string;phone:string;createdAt:number;tries:number;
 }
 /**
@@ -123,7 +124,7 @@ export class TelegramConnectionWizard {
  private async forget(ownerId:string){
    const entry=this.pending.get(ownerId);
    this.pending.delete(ownerId);
-   if(entry)await entry.gateway.close().catch(()=>{});
+   if(entry){clearTimeout(entry.timer);await entry.gateway.close().catch(()=>{});}
  }
  private async current(ownerId:string,attemptId:string,stage:TelegramLoginStage|TelegramLoginStage[]):Promise<Attempt>{
    const existing=this.pending.get(ownerId);
@@ -155,7 +156,11 @@ export class TelegramConnectionWizard {
      gateway=await this.factory(apiId,apiHash);
      const code=await gateway.sendCode(phone);
      const id=randomUUID();
-     this.pending.set(ownerId,{id,ownerId,stage:"CODE",gateway,apiId,apiHash,phone,createdAt:time,tries:0});
+     const timer=setTimeout(()=>{
+       if(this.pending.get(ownerId)?.id===id)void this.forget(ownerId);
+     },10*60_000);
+     timer.unref();
+     this.pending.set(ownerId,{id,ownerId,stage:"CODE",gateway,apiId,apiHash,phone,createdAt:time,tries:0,timer});
      return {attemptId:id,step:"CODE" as const,delivery:code.isCodeViaApp?"TELEGRAM_APP" as const:"SMS_OR_OTHER" as const,expiresInSeconds:600};
    }catch(error){
      if(gateway)await gateway.close().catch(()=>{});

@@ -1,6 +1,6 @@
 import {TelegramConnectionWizard,TelegramOnboardingError,type TelegramGatewayFactory} from "./telegram-connect.ts";
 import {isIntegrationName,readIntegrationStatus,setIntegrationSecret,revokeIntegrationSecret} from "./integration-vault.ts";
-import {storeTelegramConnection,clearTelegramConnection,storeMetaCredential,clearMetaCredential} from "./secret-setup.ts";
+import {storeTelegramConnection,clearTelegramConnection,storeMetaCredential,clearMetaCredential,createVerifiedTelegramSource} from "./secret-setup.ts";
 import {createDraftSource,createDraftDestination,attachDraftDestination} from "./configuration.ts";
 import {readFile} from "node:fs/promises";
 import {dashboardSnapshot,queuePreview,schedulesPreview,setupCatalog} from "./read-model.ts";
@@ -336,13 +336,12 @@ export async function buildApi(pool: Pool, config: ApiSettings): Promise<Fastify
       const verified=await telegramWizard.verifyChannel(actor.userId,attemptId,reference);
       // A source is marked connected ONLY following a real Telegram history read.
       // Routes remain paused; verified ingestion is not permission to publish.
-      const source=await createDraftSource(pool,actor.userId,slug,label.trim(),verified.channel.peerId);
-      const stored=await storeTelegramConnection(pool,source.sourceId,actor.userId,{
-        apiId:verified.apiId,apiHash:verified.apiHash,sessionString:verified.sessionString
+      const source=await createVerifiedTelegramSource(pool,actor.userId,{
+        slug,label,peerId:verified.channel.peerId,
+        lastSeenMessageId:verified.channel.latestMessageId,
+        apiId:verified.apiId,apiHash:verified.apiHash,
+        sessionString:verified.sessionString
       },key);
-      if(!stored)throw new Error("Verified source could not be stored");
-      await pool.query("UPDATE content_sources SET enabled=true,last_indexed_message_id=$2 WHERE id=$1::uuid",
-        [source.sourceId,verified.channel.latestMessageId]);
       await telegramWizard.finish(actor.userId,attemptId);
       return reply.code(201).send({
         sourceId:source.sourceId,routeId:source.routeId,
