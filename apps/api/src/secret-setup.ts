@@ -130,3 +130,54 @@ export async function readTelegramApiProfile(
   };
   return {apiId:value.api_id,apiHash:decryptSecret(envelope,key,"telegram-api:"+sourceId)};
 }
+
+/**
+ * Atomic, verified-only source enrollment. Never creates an enabled route.
+ * No half-registered channel can exist if credential encryption or SQL fails.
+ */
+export async function createVerifiedTelegramSource(
+ pool:Pool,actorId:string,details:{
+   slug:string;label:string;peerId:string;lastSeenMessageId:number|null;
+   apiId:number;apiHash:string;sessionString:string;
+ },key:Buffer
+):Promise<{sourceId:string;routeId:string}>{
+ if(!Number.isInteger(details.apiId)||details.apiId<1||details.apiId>2147483647)
+   throw new RangeError("Invalid Telegram API ID");
+ if(details.lastSeenMessageId!==null && (!Number.isSafeInteger(details.lastSeenMessageId)||details.lastSeenMessageId<=0))
+   throw new RangeError("Invalid Telegram checkpoint");
+ const apiHash=checkedSecret(details.apiHash,"Telegram API hash",512);
+ const session=checkedSecret(details.sessionString,"Telegram session",16000);
+ if(!/^-100[1-9][0-9]{4,18}$/.test(details.peerId))
+   throw new RangeError("Invalid verified Telegram channel peer");
+ if(!/^[a-z][a-z0-9_-]{0,63}$/.test(details.slug)||!details.label.trim())
+   throw new RangeError("Invalid source details");
+ return withinTransaction(pool,async client=>{
+   const source=await client.query<{id:string}>(
+     `INSERT INTO content_sources(kind,external_peer_id,label,enabled,last_indexed_message_id)
+      VALUES('TELEGRAM',$1,$2,true,$3) RETURNING id`,
+     [details.peerId,details.label.trim(),details.lastSeenMessageId]
+   );
+   const sourceId=source.rows[0]!.id;
+   const route=await client.query<{id:string}>(
+     "INSERT INTO routes(slug,source_id,enabled) VALUES($1,$2,false) RETURNING id",
+     [details.slug,sourceId]
+   );
+   const routeId=route.rows[0]!.id;
+   const hash=payload(apiHash,key,"telegram-api:"+sourceId);
+   const data=payload(session,key,"telegram:"+sourceId);
+   await client.query(
+     `INSERT INTO telegram_api_credentials(source_id,api_id,encrypted_hash,iv,tag,version)
+      VALUES($1,$2,$3,$4,$5,1)`,[sourceId,details.apiId,...hash]
+   );
+   await client.query(
+     `INSERT INTO telegram_session_credentials(source_id,encrypted_session,iv,tag,version)
+      VALUES($1,$2,$3,$4,1)`,[sourceId,...data]
+   );
+   await client.query(
+     `INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id,details)
+      VALUES($1,'TELEGRAM_CHANNEL_VERIFIED','SOURCE',$2,$3::jsonb)`,
+     [actorId,sourceId,JSON.stringify({verifiedRead:true,startingAfter:details.lastSeenMessageId})]
+   );
+   return {sourceId,routeId};
+ });
+}

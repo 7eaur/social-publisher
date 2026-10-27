@@ -1,5 +1,6 @@
 /* Browser UI: same-origin HttpOnly cookie, no secret/token persistence. */
 const $ = id => document.getElementById(id);
+const tgWizard = { attemptId:null, stage:"ACCOUNT" };
 const state = { csrf:"", me:null, catalog:{routes:[],sources:[],destinations:[]}, summary:null, queue:[], schedules:[], integrations:[] };
 const names = {overview:"نظرة عامة",routes:"مسارات المحتوى",queue:"قائمة المحتوى",planner:"التقويم والجدولة",accounts:"الحسابات والمصادر",settings:"الإعداد والأمان"};
 const days = ["الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"];
@@ -29,6 +30,26 @@ async function request(path,opts={}){
  return res.json();
 }
 const errors={
+ TELEGRAM_CONNECT_FAILED:"تعذّر الاتصال بخوادم تيليجرام. تحقق من API ID وAPI Hash والاتصال.",
+ BAD_API_CREDENTIALS:"API ID أو API Hash غير صحيح، أو مقيد بواسطة Telegram.",
+ TELEGRAM_RATE_LIMIT:"تيليجرام فرض مهلة حماية مؤقتة. لا تكرر طلب الأكواد سريعًا.",
+ LOGIN_COOLDOWN:"انتظر دقيقة قبل طلب رمز تحقق جديد.",
+ LOGIN_BUSY:"عدد طلبات الربط المتزامنة مرتفع. أعد المحاولة.",
+ CHALLENGE_EXPIRED:"انتهت صلاحية محاولة التحقق. ابدأ ربط الحساب مجددًا.",
+ INVALID_CHALLENGE_STEP:"هذه المرحلة من التحقق غير متاحة بعد.",
+ INVALID_TELEGRAM_INPUT:"تحقق من رقم الهاتف الدولي وبيانات تطبيق Telegram.",
+ CODE_INVALID:"رمز الدخول غير صحيح.",
+ CODE_EXPIRED:"انتهت صلاحية الرمز؛ ابدأ الربط من جديد.",
+ LOGIN_TOO_MANY_ATTEMPTS:"تجاوزت الحد المسموح لمحاولات التحقق. ابدأ من جديد لاحقًا.",
+ TWO_FACTOR_INVALID:"كلمة مرور التحقق بخطوتين غير صحيحة.",
+ TWO_FACTOR_FAILED:"تعذّر استكمال التحقق بخطوتين. أعد المحاولة.",
+ CHANNEL_REFERENCE_INVALID:"أدخل رابط قناة عامة أو @username أو معرّف -100 صالحًا.",
+ CHANNEL_NOT_ACCESSIBLE:"الحساب لا يستطيع الوصول إلى القناة أو قراءة محتواها. تحقق من العضوية والمعرّف.",
+ NOT_A_CHANNEL:"المعرّف لا يشير إلى قناة تيليجرام.",
+ TELEGRAM_VERIFY_FAILED:"تعذّر التحقق من الرمز. راجع اتصال Telegram.",
+ ACCOUNT_NOT_REGISTERED:"هذا الرقم ليس مرتبطًا بحساب تيليجرام.",
+ TELEGRAM_NOT_AUTHORIZED:"لم تكتمل مصادقة حساب تيليجرام.",
+
  INVALID_CREDENTIALS:"البريد الإلكتروني أو كلمة المرور غير صحيحة.",
  INSTALL_DISABLED:"رمز التثبيت الأولي غير مضبوط في أسرار الاستضافة.",
  INSTALL_DENIED:"رمز التثبيت غير صحيح.",
@@ -240,6 +261,7 @@ function renderSetup(){
    vault.append(item);
  }
  $("vault-section").classList.toggle("hidden",state.me.role!=="ADMIN");
+ $("telegram-wizard-panel").classList.toggle("hidden",state.me.role!=="ADMIN");
  const secured=state.catalog.secretStoreReady;
  $("secret-store-indicator").textContent=secured?"خزنة التشفير جاهزة":"مفتاح التشفير لم يُضبط بالخادم";
  $("credential-setup").classList.toggle("hidden",state.me.role!=="ADMIN");
@@ -303,6 +325,73 @@ bindForm("integration-secret-form",d=>({
  path:"/api/setup/integrations/"+encodeURIComponent(String(d.get("name"))),method:"PUT",
  body:{value:String(d.get("value"))}
 }),{secret:true});
+
+function showTelegramStage(stage){
+ tgWizard.stage=stage;
+ const ids={ACCOUNT:"tg-connect-account",CODE:"tg-connect-code",PASSWORD:"tg-connect-password",CHANNEL:"tg-connect-channel"};
+ for(const [name,id] of Object.entries(ids))$(id).classList.toggle("hidden",name!==stage);
+ document.querySelectorAll("[data-tg-step]").forEach(node=>node.classList.toggle("selected",node.dataset.tgStep===stage));
+ $("tg-wizard-cancel").classList.toggle("hidden",stage==="ACCOUNT");
+}
+function tgStatus(message){$("tg-wizard-status").textContent=message;}
+async function telegramForm(id,build,done){
+ const form=$(id);
+ form.addEventListener("submit",async event=>{
+   event.preventDefault();
+   const button=form.querySelector('button[type="submit"]');
+   const previous=button.textContent;
+   button.disabled=true;button.textContent="جارٍ التحقق...";
+   try{
+     const input=build(new FormData(form));
+     const data=await mutate(input.path,{body:input.body});
+     form.reset();
+     await done(data);
+   }catch(error){tgStatus(errors[error?.message]||"تعذّر استكمال الربط. أعد المحاولة.");}
+   finally{button.disabled=false;button.textContent=previous;}
+ });
+}
+void telegramForm("tg-connect-account",d=>({
+ path:"/api/telegram/connect/start",
+ body:{apiId:Number(d.get("apiId")),apiHash:String(d.get("apiHash")),phone:String(d.get("phone")).trim()}
+}),async data=>{
+ tgWizard.attemptId=data.attemptId;
+ showTelegramStage("CODE");
+ $("tg-code-hint").textContent=data.delivery==="TELEGRAM_APP"?
+  "أرسل Telegram الرمز غالبًا داخل تطبيق تيليجرام على جهاز آخر. أدخل الرمز هنا.":
+  "أرسل Telegram الرمز عبر طريقة التحقق المتاحة لحسابك. أدخل الرمز هنا.";
+ tgStatus("أُرسل طلب التحقق بنجاح. تبقى صلاحية المحاولة لمدة عشر دقائق.");
+});
+void telegramForm("tg-connect-code",d=>({
+ path:"/api/telegram/connect/code",
+ body:{attemptId:tgWizard.attemptId,code:String(d.get("code")).trim()}
+}),async data=>{
+ showTelegramStage(data.step);
+ tgStatus(data.step==="PASSWORD"?"الحساب يستخدم التحقق بخطوتين. أدخل كلمة المرور الإضافية.":"تم تأكيد الرمز. أدخل رابط القناة واختبر صلاحية القراءة.");
+});
+void telegramForm("tg-connect-password",d=>({
+ path:"/api/telegram/connect/password",
+ body:{attemptId:tgWizard.attemptId,password:String(d.get("password"))}
+}),async()=>{
+ showTelegramStage("CHANNEL");
+ tgStatus("نجح التحقق بخطوتين. أدخل القناة المرجعية للمحتوى.");
+});
+void telegramForm("tg-connect-channel",d=>({
+ path:"/api/telegram/connect/channel",
+ body:{attemptId:tgWizard.attemptId,reference:String(d.get("reference")).trim(),
+       slug:String(d.get("slug")).trim(),label:String(d.get("label")).trim()}
+}),async data=>{
+ tgWizard.attemptId=null;
+ showTelegramStage("ACCOUNT");
+ tgStatus("تم التحقق من قراءة قناة "+data.channel.title+" وحفظ الجلسة مشفّرة. ستبدأ المزامنة المستقبلية من المنشورات الجديدة فقط، ومسار النشر يبقى معطّلًا.");
+ await load();
+});
+$("tg-wizard-cancel").addEventListener("click",async()=>{
+ try{await mutate("/api/telegram/connect/cancel");}
+ catch(error){issue(error);}
+ tgWizard.attemptId=null;
+ showTelegramStage("ACCOUNT");
+ tgStatus("ألغيت عملية الربط. لم تُحفظ جلسة مؤقتة.");
+});
 $("queue-search").addEventListener("input",renderQueue);
 window.addEventListener("hashchange",navigate);
 $("logout").addEventListener("click",async()=>{

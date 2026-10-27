@@ -79,15 +79,57 @@
           <section class="view hidden" data-view="settings" id="setup">
             <div class="page-header"><div><span class="eyebrow">SETUP CENTER</span><h1>مركز الإعدادات والربط</h1><p class="muted">رتّب الإعدادات على أربع خطوات. تُخزّن بيانات الدخول الحساسة مشفّرة ولا تُعرض مرة أخرى.</p></div><span id="secret-store-indicator" class="soft-pill">التحقق من التشفير...</span></div>
             <div class="setup-steps"><span>١ · إنشاء المصادر</span><span>٢ · إضافة الحسابات</span><span>٣ · حفظ بيانات الربط</span><span>٤ · إعداد الجداول</span></div>
+            <article class="panel telegram-onboard" id="telegram-wizard-panel">
+              <div class="panel-header">
+                <div><span class="eyebrow">GUIDED TELEGRAM AUTHORIZATION</span><h2>ربط حساب تيليجرام والتحقق من القناة</h2>
+                <p class="muted">من الهاتف إلى رمز التحقق ثم كلمة مرور التحقق بخطوتين إذا كانت مفعّلة، وبعدها اختبار قراءة القناة. ستبدأ متابعة المحتوى بعد آخر منشور حالي، دون إعادة نشر الأرشيف السابق. لا يتم تفعيل النشر تلقائيًا.</p></div>
+                <span class="soft-pill">اتصال MTProto حقيقي</span>
+              </div>
+              <div class="wizard-steps"><span data-tg-step="ACCOUNT" class="selected">١. الحساب</span><span data-tg-step="CODE">٢. الرمز</span><span data-tg-step="PASSWORD">٣. التحقق بخطوتين</span><span data-tg-step="CHANNEL">٤. القناة</span></div>
+              <form id="tg-connect-account" class="setup-form telegram-wizard-form" autocomplete="off">
+                <h3>أدخل بيانات حسابك</h3>
+                <p class="muted">استخدم API ID وAPI Hash الخاصين بتطبيقك من my.telegram.org. رقم الهاتف بصيغة دولية، مثل +967...</p>
+                <div class="wizard-fields">
+                  <label>API ID<input name="apiId" type="number" min="1" max="2147483647" required></label>
+                  <label>API Hash<input name="apiHash" type="password" autocomplete="off" minlength="15" maxlength="128" required></label>
+                  <label>رقم الحساب الدولي<input name="phone" type="tel" dir="ltr" pattern="\+[1-9][0-9]{7,14}" placeholder="+967..." autocomplete="tel" required></label>
+                </div>
+                <button type="submit" class="primary-button">إرسال رمز التحقق من Telegram</button>
+              </form>
+              <form id="tg-connect-code" class="setup-form telegram-wizard-form hidden" autocomplete="off">
+                <h3>رمز التحقق من تيليجرام</h3>
+                <p id="tg-code-hint" class="muted">أدخل الرمز الذي أرسلته Telegram إلى حسابك.</p>
+                <label>رمز الدخول<input name="code" inputmode="numeric" type="text" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="one-time-code" required></label>
+                <button type="submit" class="primary-button">تأكيد الرمز</button>
+              </form>
+              <form id="tg-connect-password" class="setup-form telegram-wizard-form hidden" autocomplete="off">
+                <h3>كلمة مرور التحقق بخطوتين</h3>
+                <p class="muted">هذه كلمة مرور حساب تيليجرام الإضافية، وليست كلمة مرور لوحة الإدارة. تُستخدم في التحقق ولا تُحفظ.</p>
+                <label>كلمة مرور تيليجرام<input name="password" type="password" autocomplete="off" maxlength="256" required></label>
+                <button type="submit" class="primary-button">التحقق من كلمة المرور</button>
+              </form>
+              <form id="tg-connect-channel" class="setup-form telegram-wizard-form hidden" autocomplete="off">
+                <h3>اختيار قناة المحتوى</h3>
+                <p class="muted">أدخل رابط قناة عامة مثل https://t.me/channelname أو @channelname أو المعرّف -100... لقناة يستطيع الحساب قراءتها. روابط الدعوة الخاصة لا تنضم للقناة تلقائيًا. لا يتم استيراد الرسائل القديمة تلقائيًا.</p>
+                <div class="wizard-fields">
+                  <label>رابط القناة أو معرّفها<input name="reference" type="text" required maxlength="150" placeholder="https://t.me/example"></label>
+                  <label>رمز مسار النشر<input name="slug" type="text" pattern="[a-z][a-z0-9_-]{0,63}" required placeholder="wasl-tech"></label>
+                  <label>اسم المصدر<input name="label" type="text" maxlength="120" required placeholder="قناة وصل تك"></label>
+                </div>
+                <button type="submit" class="primary-button">التحقق من القراءة وحفظ المصدر</button>
+              </form>
+              <div class="wizard-status" id="tg-wizard-status" role="status" aria-live="polite">ابدأ بربط الحساب. يتم حفظ الجلسة مشفّرة بعد التأكد من صلاحية قراءة القناة.</div>
+              <button id="tg-wizard-cancel" type="button" class="small-button hidden">إلغاء عملية الربط</button>
+            </article>
             <div class="setup-grid">
-              <form id="source-form" class="setup-form"><span class="step-label">الخطوة 01 / TELEGRAM</span><h3>إضافة قناة كمصدر</h3><p class="muted">أنشئ مسارًا مرتبطًا بقناة محددة؛ يبقى معطلًا إلى حين التحقق.</p><label>رمز المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required maxlength="64"></label><label>الاسم الظاهر<input name="label" placeholder="قناة وصل تك" required maxlength="120"></label><label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required pattern="-?[0-9]{5,30}"></label><button class="primary-button" type="submit">حفظ مصدر جديد</button></form>
+              <details class="advanced-tg-options"><summary>خيار متقدم: إضافة المصدر بمعرّف القناة يدويًا</summary><form id="source-form" class="setup-form"><span class="step-label">الخطوة 01 / TELEGRAM</span><h3>إضافة قناة كمصدر</h3><p class="muted">أنشئ مسارًا مرتبطًا بقناة محددة؛ يبقى معطلًا إلى حين التحقق.</p><label>رمز المسار<input name="slug" placeholder="wasl-tech" pattern="[a-z][a-z0-9_-]*" required maxlength="64"></label><label>الاسم الظاهر<input name="label" placeholder="قناة وصل تك" required maxlength="120"></label><label>معرّف القناة<input name="peerId" placeholder="-1001234567890" required pattern="-?[0-9]{5,30}"></label><button class="primary-button" type="submit">حفظ مصدر جديد</button></form></details>
               <form id="destination-form" class="setup-form"><span class="step-label">الخطوة 02 / SOCIAL</span><h3>إضافة حساب نشر</h3><p class="muted">حدد الصفحة أو الحساب المهني المطلوب قبل إدخال بيانات الاتصال.</p><label>المنصة<select name="platform"><option value="FACEBOOK">Facebook Page</option><option value="INSTAGRAM">Instagram Professional</option></select></label><label>اسم الحساب<input name="displayName" required maxlength="120" placeholder="الصفحة الرسمية"></label><label>المعرّف الرقمي<input name="accountId" required pattern="[0-9]+" placeholder="123456789"></label><button class="primary-button" type="submit">حفظ الحساب كمسودة</button></form>
               <form id="attach-form" class="setup-form"><span class="step-label">الخطوة 02 / ROUTING</span><h3>ربط الحساب بالمسار</h3><p class="muted">يمنع النظام اشتراك الحساب نفسه في مسارين متعارضين.</p><label>المسار<select class="route-select" name="routeId" required></select></label><label>حساب النشر<select id="destination-select" name="destinationId" required></select></label><button class="primary-button" type="submit">ربط المسار بالحساب</button></form>
               <form id="schedule-form" class="setup-form"><span class="step-label">الخطوة 04 / SCHEDULE</span><h3>جدولة النشر</h3><p class="muted">الأيام: الإثنين=1 إلى الأحد=7. الأوقات بصيغة 24 ساعة.</p><label>المسار<select class="route-select" name="routeId" required></select></label><label>المنطقة الزمنية<input name="timeZone" value="Asia/Aden" required></label><label>أيام الأسبوع<input name="isoWeekdays" value="1,2,3,4,5,6,7" required></label><label>الأوقات (مفصولة بفاصلة)<input name="slots" value="09:00" required placeholder="09:00, 18:00"></label><label>الحد اليومي<input name="dailyLimit" type="number" min="1" max="50" value="1" required></label><button class="primary-button" type="submit">حفظ جدول المسار</button></form>
             </div>
             <div class="section-heading"><span class="eyebrow">ENCRYPTED CREDENTIALS</span><h2>خزنة بيانات الربط</h2><p class="muted">هذه البيانات لا تُحفَظ في المتصفح أو في المستودع. لا تعني تعبئة النموذج أن الحساب تم التحقق منه.</p></div>
             <div id="credential-setup" class="setup-grid">
-              <form id="telegram-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / TELEGRAM SESSION</span><h3>جلسة تيليجرام</h3><p class="muted">مخصصة لجلسة مصرّح بها مسبقًا. لا ننشئ رموز تحقق أو نسحب قنوات غير محددة.</p><label>المصدر<select id="telegram-secret-source" name="sourceId" required></select></label><label>API ID<input name="apiId" type="number" min="1" max="2147483647" required autocomplete="off"></label><label>API Hash<input name="apiHash" type="password" required autocomplete="new-password" maxlength="512"></label><label>Session String<textarea name="sessionString" required rows="3" maxlength="16000" spellcheck="false" placeholder="أدخل الجلسة المصرح بها هنا فقط"></textarea></label><button type="submit" class="primary-button">حفظ مشفّر وإبقاء القناة معطّلة</button></form>
+              <details class="advanced-tg-options"><summary>خيار متقدم: استيراد Telegram Session String موجودة مسبقًا</summary><form id="telegram-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / TELEGRAM SESSION</span><h3>جلسة تيليجرام</h3><p class="muted">مخصصة لجلسة مصرّح بها مسبقًا. لا ننشئ رموز تحقق أو نسحب قنوات غير محددة.</p><label>المصدر<select id="telegram-secret-source" name="sourceId" required></select></label><label>API ID<input name="apiId" type="number" min="1" max="2147483647" required autocomplete="off"></label><label>API Hash<input name="apiHash" type="password" required autocomplete="new-password" maxlength="512"></label><label>Session String<textarea name="sessionString" required rows="3" maxlength="16000" spellcheck="false" placeholder="أدخل الجلسة المصرح بها هنا فقط"></textarea></label><button type="submit" class="primary-button">حفظ مشفّر وإبقاء القناة معطّلة</button></form></details>
               <form id="meta-secret-form" class="setup-form secure-form" autocomplete="off"><span class="step-label">الخطوة 03 / META ACCESS</span><h3>رمز حساب Meta</h3><p class="muted">احفظ رمز وصول مصرحًا به لصفحتك أو لحسابك المهني. التفعيل ينتظر فحص الصلاحيات.</p><label>الحساب<select name="destinationId" id="meta-secret-destination" required></select></label><label>Access Token<textarea name="accessToken" required rows="5" maxlength="16000" spellcheck="false" placeholder="رمز الحساب — لن يُعرض بعد الحفظ"></textarea></label><button type="submit" class="primary-button">حفظ الرمز مشفّرًا</button></form>
             </div>
             <div id="vault-section">
