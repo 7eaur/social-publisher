@@ -6,6 +6,7 @@ export interface TelegramChannelResult {
  readonly peerId:string;
  readonly title:string;
  readonly username:string|null;
+ readonly latestMessageId:number|null;
 }
 export interface TelegramGateway {
  sendCode(phone:string):Promise<{isCodeViaApp:boolean}>;
@@ -81,7 +82,8 @@ export const createTelegramGateway:TelegramGatewayFactory=async(apiId,apiHash)=>
      return {
        peerId:"-100"+entity.id.toString(),
        title:entity.title,
-       username:entity.username??null
+       username:entity.username??null,
+       latestMessageId
      };
    },
    sessionString:()=>session.save(),
@@ -90,7 +92,11 @@ export const createTelegramGateway:TelegramGatewayFactory=async(apiId,apiHash)=>
 };
 
 export class TelegramOnboardingError extends Error {
- constructor(readonly code:string,readonly httpStatus=400){super(code);}
+ readonly code:string;
+ readonly httpStatus:number;
+ constructor(code:string,httpStatus=400){
+   super(code);this.code=code;this.httpStatus=httpStatus;
+ }
 }
 export type TelegramLoginStage="CODE"|"PASSWORD"|"CHANNEL";
 interface Attempt{
@@ -104,8 +110,11 @@ interface Attempt{
 export class TelegramConnectionWizard {
  private readonly pending=new Map<string,Attempt>();
  private readonly recentlyStarted=new Map<string,number>();
- constructor(private readonly factory:TelegramGatewayFactory=createTelegramGateway,
-             private readonly now:()=>number=Date.now){}
+ private readonly factory:TelegramGatewayFactory;
+ private readonly now:()=>number;
+ constructor(factory:TelegramGatewayFactory=createTelegramGateway,now:()=>number=Date.now){
+   this.factory=factory;this.now=now;
+ }
  private async forget(ownerId:string){
    const entry=this.pending.get(ownerId);
    this.pending.delete(ownerId);
